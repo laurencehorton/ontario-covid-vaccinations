@@ -1,0 +1,21 @@
+---
+title: "Ontario COVID-19 vaccination progress"
+---
+
+
+Tracking the progress of vaccinating Ontario's population against COVID-19.
+
+
+```{r, child="ontario-covid-vaccinations.Rmd"}
+```
+
+### R packages  
+Couture-Bell, A. (2018). rjson: JSON for R, *R package version 0.2.20* https://CRAN.R-project.org/package=rjson  
+
+Grolemund, G., Wickham, H. (2011). Dates and times made easy with {lubridate}, *Journal of Statistical Software, 40*(3), 1-25. https://www.jstatsoft.org/v40/i03/  
+
+R Core Team. (2018). *R: A Language and Environment for Statistical Computing. R Foundation for Statistical Computing*, https://www.R-project.org/  
+
+Wickham, H. et. al. (2019). Welcome to the {tidyverse}, *Journal of Open Source Software, 4*(43), 1686. https://doi.org/10.21105/joss.01686  
+
+Xie, Y. (2021). knitr: A General-Purpose Package for Dynamic Report Generation in R, *R package version 1.31*, https://yihui.org/knitr/

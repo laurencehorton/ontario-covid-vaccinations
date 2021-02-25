@@ -1,0 +1,4 @@
+name: "ontario-covid-vaccinations"
+output:
+  html_document:
+    theme: simplex
