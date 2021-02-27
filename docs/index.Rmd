@@ -1,5 +1,6 @@
 ---
 title: "Ontario COVID-19 vaccination progress"
+date: "`r Sys.Date()`"
 ---
 
 
