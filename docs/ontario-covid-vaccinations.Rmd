@@ -176,7 +176,7 @@ ggplot() +
   ) +
   scale_x_date(name = "Day") +
   scale_y_continuous(name = "Daily doses",
-                     sec.axis = sec_axis(~ . * 10, name = "Cumilative total doses")) +
+                     sec.axis = sec_axis(~ . * 100, name = "Cumilative total doses")) +
   theme(
     axis.title.y = element_text(color = "black"),
     axis.title.y.right = element_text(color = "blue")
@@ -358,3 +358,4 @@ toBibtex(citation("knitr"))
 toBibtex(citation("lubridate"))
 toBibtex(citation("rjson"))
 toBibtex(citation("tidyverse"))
+toBibtex(citation("rmarkdown"))

@@ -10,7 +10,12 @@ Tracking the progress of vaccinating Ontario's population against COVID-19.
 ```{r, child="ontario-covid-vaccinations.Rmd"}
 ```
 
+### Code
+Horton, L. (2021). Ontario Covid Vaccinations. *GitHub repository*, https://github.com/laurencehorton/ontario-covid-vaccinations
+
 ### R packages  
+Allaire, J.J. et. al. (2021). *rmarkdown: Dynamic Documents for R. R package version 2.7*. https://rmarkdown.rstudio.com  
+
 Couture-Bell, A. (2018). rjson: JSON for R, *R package version 0.2.20* https://CRAN.R-project.org/package=rjson  
 
 Grolemund, G., Wickham, H. (2011). Dates and times made easy with {lubridate}, *Journal of Statistical Software, 40*(3), 1-25. https://www.jstatsoft.org/v40/i03/  
