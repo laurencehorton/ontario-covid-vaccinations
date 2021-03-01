@@ -124,8 +124,8 @@ vizfull <-
 names(vizpart)[names(vizpart) == "percentagepart"] <- "percentage"
 names(vizfull)[names(vizfull) == "percentagefully"] <- "percentage"
 ```
-
-**Latest reported number of people fully vaccinated**  
+  
+### Fully vaccinated  
 ```{r latest number of fully vaccinated, results = 'asis', echo = FALSE}
 latest <- subset(vaxx, select = c(report_date, total_individuals_fully_vaccinated, percentagefully))
 latest$percentagefully <- round(latest$percentagefully, digits = 2)
@@ -133,10 +133,35 @@ colnames(latest) <- c("Report date", "Individuals fully vaccinated", "Percentage
 latest <- tail(latest, n=1)
 knitr::kable(latest, row.names = FALSE, align = "c")
 ```
+  
 
-
-
-**Daily amounts of vaccine doses and cumulative total of vaccine doses administered**
+### Progress as a percentage of adult population  
+```{r vaccine percentage population visualisation, echo = FALSE}
+ggplot(vizfull, aes(report_date, percentage)) +
+  geom_line(aes(linetype = "Fully")) +
+  geom_line(data = vizpart, aes(linetype = "Fully or Partly")) +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(
+    linetype = "Vaccinated",
+    x = "Reporting day",
+    y = "Percentage",
+    caption = "Source: Ontario COVID-19 vaccine data and StatsCan Ontario population estimate 2020",
+    title = "Ontario COVID-19 vaccination",
+    subtitle = "Percentage of adult population (15+)"
+  ) +
+  theme(legend.position = "bottom")
+```
+  
+### Vaccine doses
+```{r latest number of vaccine doses, results = 'asis', echo = FALSE}
+latestdoses <- subset(vaxx, select = c(report_date, previous_day_doses_administered, total_doses_administered))
+colnames(latestdoses) <- c("Report date", "Previous day doses administered", "Total number of doses administered")
+latestdoses <- tail(latestdoses, n=1)
+knitr::kable(latestdoses, row.names = FALSE, align = "c")
+```
+  
+  
+### Daily and cumulative vaccine doses  
 ```{r daily and cumilative totals of vaccine administered, echo = FALSE}
 # Subset data
 dosesadministered <-
@@ -181,23 +206,6 @@ ggplot() +
     axis.title.y = element_text(color = "black"),
     axis.title.y.right = element_text(color = "blue")
   )
-```
-
-**Progress as a percentage of adult population**  
-```{r vaccine percentage population visualisation, echo = FALSE}
-ggplot(vizfull, aes(report_date, percentage)) +
-  geom_line(aes(linetype = "Fully")) +
-  geom_line(data = vizpart, aes(linetype = "Fully or Partly")) +
-  scale_y_continuous(limits = c(0, 100)) +
-  labs(
-    linetype = "Vaccinated",
-    x = "Reporting day",
-    y = "Percentage",
-    caption = "Source: Ontario COVID-19 vaccine data and StatsCan Ontario population estimate 2020",
-    title = "Ontario COVID-19 vaccination",
-    subtitle = "Percentage of adult population (15+)"
-  ) +
-  theme(legend.position = "bottom")
 ```
 
 ## Progress targets  
