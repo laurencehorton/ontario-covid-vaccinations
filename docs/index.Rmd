@@ -10,9 +10,6 @@ Tracking the progress of vaccinating Ontario's population against COVID-19.
 ```{r, child="ontario-covid-vaccinations.Rmd"}
 ```
 
-### Code
-Horton, L. (2021). Ontario Covid Vaccinations. *GitHub repository*, https://github.com/laurencehorton/ontario-covid-vaccinations
-
 ### R packages  
 Allaire, J.J. et. al. (2021). *rmarkdown: Dynamic Documents for R. R package version 2.7*. https://rmarkdown.rstudio.com  
 
