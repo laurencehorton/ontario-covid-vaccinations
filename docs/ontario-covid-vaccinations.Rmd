@@ -147,10 +147,9 @@ ggplot(vizfull, aes(report_date, percentage)) +
     y = "",
     caption = "Data: Ontario COVID-19 vaccine data and StatsCan Ontario population estimate 2020",
     title = "Ontario COVID-19 vaccination, 2020-2021",
-    subtitle = "Percentage of adult population (15+)"
+    subtitle = "Percentage of adult population (aged 15+)"
   ) +
-  theme(legend.position = "bottom", panel.grid.minor = element_blank()
-  )
+  theme(legend.position = "right", panel.grid.minor = element_blank())
 ```
   
 ### Vaccine doses
@@ -202,7 +201,7 @@ ggplot() +
   ) +
   scale_x_date(name = "") +
   scale_y_continuous(name = "Daily doses",
-                     sec.axis = sec_axis(~ . / 10000, name = "Cumilative (million)")) +
+                     sec.axis = sec_axis( ~ . / 10000, name = "Cumilative (million)")) +
   theme(
     axis.title.y = element_text(color = "black"),
     axis.title.y.right = element_text(color = "blue"),
