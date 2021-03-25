@@ -105,10 +105,29 @@ vaxx <- vaxx[order(vaxx$report_date),] # sort by report date
 
 ```{r create vaccination percentages, include = FALSE}
 # Calculate new columns for vaccination of percentages of adults either partly vaccinated or fully vaccinated using adult population estimate.
+
+# Total number of partially vaccinated adults
+vaxx$part <- ((vaxx$total_doses_administered - vaxx$total_doses_in_fully_vaccinated_individuals))
+
+# Total number of adults either fully or partially vaccinated
+vaxx$fullorpart <- ((vaxx$total_individuals_fully_vaccinated + vaxx$part))
+
+# Number of adults who are neither fully or partially vaccinated
+vaxx$none <- ((ONpop2020adults - vaxx$fullorpart))
+
+# Percentage shares
 vaxx$percentagepart <-
-  ((vaxx$total_doses_administered / ONpop2020adults) * 100)
+  ((vaxx$part / ONpop2020adults) * 100) # Part vaccinated
 vaxx$percentagefully <-
-  ((vaxx$total_individuals_fully_vaccinated / ONpop2020adults) * 100)
+  ((vaxx$total_individuals_fully_vaccinated / ONpop2020adults) * 100) # Fully vaccinated
+vaxx$percentagefullorpart <- ((vaxx$fullorpart / ONpop2020adults) * 100) # Fully or partly vaccinated
+vaxx$percentagenone <- ((vaxx$none / ONpop2020adults) * 100) # No vaccination
+
+# Round percentages to two decimals
+vaxx$percentagefully <- round(vaxx$percentagefully, digits = 2)
+vaxx$percentagepart <- round(vaxx$percentagepart, digits = 2)
+vaxx$percentagefullorpart <- round(vaxx$percentagefullorpart, digits = 2)
+vaxx$percentagenone <- round(vaxx$percentagenone, digits = 2)
 ```
 
 ```{r unlist vaccination data, include = FALSE}
@@ -116,30 +135,64 @@ vaxx$percentagefully <-
 vaxx <- as.data.frame(lapply(vaxx, unlist)) # Unlist vaccination data
 
 # Subset percentage data for visualisation.
-vizpart <- subset(vaxx, select = c("report_date", "percentagepart"))
+vizfullorpart <- subset(vaxx, select = c("report_date", "percentagefullorpart"))
 vizfull <-
   subset(vaxx, select = c("report_date", "percentagefully"))
 
 # standardise column names
-names(vizpart)[names(vizpart) == "percentagepart"] <- "percentage"
+names(vizfullorpart)[names(vizfullorpart) == "percentagefullorpart"] <- "percentage"
 names(vizfull)[names(vizfull) == "percentagefully"] <- "percentage"
 ```
   
-### Fully vaccinated  
+### Vaccinated
+Vaccination status as a percentage of the population
+```{r create subset of vaccination status as percentage of adult population, include = FALSE}
+bar <- tail(vaxx, n = 1)
+bar <- subset(bar, select = c(percentagefully, percentagepart, percentagenone))
+bar <- t(bar)
+bar <- as.data.frame(bar)
+row.names(bar) <- c("Fully vaccinated", "Partly vaccinated", "No vaccination")
+bar <- tibble::rownames_to_column(bar, "Status")
+colnames(bar) <- c("Status", "Percentage")
+# Round percentages to two decimals
+bar$Percentage <- round(bar$Percentage, digits = 1)
+```
+
+```{r barplot visualisation of vaccination status as percentage of adult population, echo = FALSE}
+ggplot(bar, aes(x = "", y = Percentage, fill = Status)) +
+  geom_bar(stat = "identity", width = .375) +
+  geom_text(aes(label = paste0(Percentage, sep = "%")),
+            position = position_stack(vjust = .5),
+            size = 2.5) +
+  labs(
+    x = NULL,
+    y = NULL,
+    caption = "Data: Ontario COVID-19 vaccine data and StatsCan Ontario population estimate 2020",
+    title = "Ontario COVID-19 vaccination status of adult population (aged 15+)",
+    subtitle = Sys.Date()
+  ) +
+  theme_classic() +
+  theme(
+    axis.line = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank()
+  ) +
+  scale_fill_brewer(palette = "Greys") +
+  coord_flip()
+```
+
 ```{r latest number of fully vaccinated, results = 'asis', echo = FALSE}
-latest <- subset(vaxx, select = c(report_date, total_individuals_fully_vaccinated, percentagefully))
-latest$percentagefully <- round(latest$percentagefully, digits = 2)
-colnames(latest) <- c("Report date", "Individuals fully vaccinated", "Percentage of Ontario adult population fully vaccinated")
-latest <- tail(latest, n=1)
+latest <- subset(vaxx, select = c(report_date, total_individuals_fully_vaccinated, part, fullorpart))
+colnames(latest) <- c("Report date", "Fully", "Partly", "Fully or partly ")
+latest <- tail(latest, n = 1)
 knitr::kable(latest, row.names = FALSE, align = "c")
 ```
-  
 
-### Progress as a percentage of adult population  
+### Progress
 ```{r vaccine percentage population visualisation, echo = FALSE}
 ggplot(vizfull, aes(report_date, percentage)) +
   geom_line(aes(linetype = "Fully")) +
-  geom_line(data = vizpart, aes(linetype = "Fully or Partly")) +
+  geom_line(data = vizfullorpart, aes(linetype = "Fully or Partly")) +
   scale_y_continuous(limits = c(0, 100)) +
   labs(
     linetype = "Vaccinated",
@@ -317,7 +370,6 @@ daystofull15 <- round(target15/avefullyvaxxday, digits = 0)
 daystofull10 <- round(target10/avefullyvaxxday, digits = 0)
 daystofull05 <- round(target05/avefullyvaxxday, digits = 0)
 ```
-
 
 ```{r projected full date, include = FALSE}
 # Calculate projected date targets for fully vaccinated will be met from today's date.
