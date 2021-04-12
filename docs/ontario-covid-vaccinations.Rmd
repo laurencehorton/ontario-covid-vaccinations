@@ -18,8 +18,8 @@ library(lubridate) # for converting character strings to dates
 ```{r data sources, include = FALSE}
 vaxxdata <-
   (
-    "https://data.ontario.ca/api/3/action/datastore_search?resource_id=8a89caa9-511c-4568-af89-7f2174b4378c"
-  )
+    "https://data.ontario.ca/api/3/action/datastore_search?resource_id=8a89caa9-511c-4568-af89-7f2174b4378c&limit=1000"
+  ) #API set to capture first 1000 records.
 ONpop2020 <-
   read.csv(
     "https://www150.statcan.gc.ca/t1/tbl1/en/dtl!downloadDbLoadingData-nonTraduit.action?pid=1710000501&latestN=0&startDate=20200101&endDate=20200101&csvLocale=en&selectedMembers=%5B%5B7%5D%2C%5B1%5D%2C%5B1%2C7%2C13%2C19%2C25%2C31%2C37%2C43%2C49%2C55%2C61%2C67%2C73%2C79%2C85%2C86%2C87%2C88%2C89%2C105%2C126%2C132%2C138%5D%5D"
