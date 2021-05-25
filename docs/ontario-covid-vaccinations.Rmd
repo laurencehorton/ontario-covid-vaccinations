@@ -28,7 +28,7 @@ ONpop2020 <-
 
 ```{r population, include = FALSE}
 ## Clean data  
-# Slice Ontario population estimates to obtain a value for population over 15.
+# Slice Ontario population estimates to obtain a value for population over 10.
 ONpop2020 <-
   ONpop2020[c("Age.group", "VALUE")] # Keep only these columns
 ONpop2020 <-
@@ -36,11 +36,11 @@ ONpop2020 <-
 ONpop2020all <-
   sum(ONpop2020["VALUE"]) # obtain sum of total population as a numeric value
 ONpop2020kids <-
-  ONpop2020 %>% slice(1:3) # remove age categories 0-4, 5-9, 10-14 from all population.
+  ONpop2020 %>% slice(1:2) # remove age categories 0-4, 5-9 from all population.
 ONpop2020kids <-
-  sum(ONpop2020kids["VALUE"]) # Sum the age if categories 0-4, 5-9, 10-14.
+  sum(ONpop2020kids["VALUE"]) # Sum the age if categories 0-4, 5-9
 ONpop2020adults <-
-  ONpop2020all - ONpop2020kids # Subtract sum total of values 0-4, 5-9, 10-14 from total population to obtain adult population estimate.
+  ONpop2020all - ONpop2020kids # Subtract sum total of values 0-4, 5-9from total population to obtain adult population estimate.
 ```
 
 ```{r vaccination data, include = FALSE}
@@ -82,25 +82,49 @@ vaxx[is.na(vaxx)] = 0 # convert NAs to zero.
 ```
 
 ```{r missing christmas data, include = FALSE}
+# The province administered the first vaccine on 2020-12-14 but didn't record data until 2020-12-24. Average the reported figure for the first day in the data set over the previous ten days.
+firstdoses <- head(vaxx$total_doses_administered, n = 1)
+firstdose2020data <- data.frame(
+  "id" = 0,
+  "report_date" = c(
+    "2020-12-15T00:00:00",
+    "2020-12-16T00:00:00",
+    "2020-12-17T00:00:00",
+    "2020-12-18T00:00:00",
+    "2020-12-19T00:00:00",
+    "2020-12-20T00:00:00",
+    "2020-12-21T00:00:00",
+    "2020-12-22T00:00:00",
+    "2020=12-23T00:00:00"
+  ),
+  "previous_day_doses_administered" = 0,
+  "total_doses_administered" = 0,
+  "total_doses_in_fully_vaccinated_individuals" = 0,
+  "total_individuals_fully_vaccinated" = 0
+)
+
 # The province did not administer any vaccines between 2020-12-25 and 2020-12-29 but omits this data from the data set. Add missing Christmas 2020 values.
 christmas2020data <- data.frame(
-  id = c(0, 0, 0, 0, 0),
-  report_date = c(
+  "id" = 0,
+  "report_date" = c(
     "2020-12-25T00:00:00",
     "2020-12-26T00:00:00",
     "2020-12-27T00:00:00",
     "2020-12-28T00:00:00",
     "2020-12-29T00:00:00"
   ),
-  "previous_day_doses_administered" = c(10756, 0, 0, 0, 0),
-  "total_doses_administered" = c(10756, 10756, 10756, 10756, 10756),
-  "total_doses_in_fully_vaccinated_individuals" = c(0, 0, 0, 0, 0),
-  "total_individuals_fully_vaccinated" = c(0, 0, 0, 0, 0)
+  "previous_day_doses_administered" = c(firstdoses, 0, 0, 0, 0),
+  "total_doses_administered" = firstdoses,
+  "total_doses_in_fully_vaccinated_individuals" = 0,
+  "total_individuals_fully_vaccinated" = 0
 )
+# converts report date into date.
+firstdose2020data$report_date <- ymd_hms(firstdose2020data$report)
 christmas2020data$report_date <-
-  ymd_hms(christmas2020data$report_date) # converts report date into date.
-vaxx <- rbind(vaxx, christmas2020data) # merge with vaxx data
-vaxx <- vaxx[order(vaxx$report_date),] # sort by report date
+  ymd_hms(christmas2020data$report_date)
+
+vaxx <- rbind(vaxx, firstdose2020data, christmas2020data) # merge with vaxx data
+vaxx <- vaxx[order(vaxx$report_date), ] # sort by report date
 ```
 
 ```{r create vaccination percentages, include = FALSE}
@@ -138,10 +162,12 @@ vaxx <- as.data.frame(lapply(vaxx, unlist)) # Unlist vaccination data
 vizfullorpart <- subset(vaxx, select = c("report_date", "percentagefullorpart"))
 vizfull <-
   subset(vaxx, select = c("report_date", "percentagefully"))
+vizpart <- subset(vaxx, select = c("report_date", "percentagepart"))
 
 # standardise column names
 names(vizfullorpart)[names(vizfullorpart) == "percentagefullorpart"] <- "percentage"
 names(vizfull)[names(vizfull) == "percentagefully"] <- "percentage"
+names(vizpart)[names(vizpart) == "percentagepart"] <- "percentage"
 ```
   
 ### Vaccinated
@@ -168,7 +194,7 @@ ggplot(bar, aes(x = "", y = Percentage, fill = Status)) +
     x = NULL,
     y = NULL,
     caption = "Data: Ontario COVID-19 vaccine data and StatsCan Ontario population estimate 2020",
-    title = "Ontario COVID-19 vaccination status of adult population (aged 15+)",
+    title = "Ontario COVID-19 vaccination status of adult population (aged 10+)",
     subtitle = Sys.Date()
   ) +
   theme_classic() +
@@ -192,15 +218,15 @@ knitr::kable(latest, row.names = FALSE, align = "c")
 ```{r vaccine percentage population visualisation, echo = FALSE}
 ggplot(vizfull, aes(report_date, percentage)) +
   geom_line(aes(linetype = "Fully")) +
-  geom_line(data = vizfullorpart, aes(linetype = "Fully or Partly")) +
+  geom_line(data = vizpart, aes(linetype = "Partly")) +
   scale_y_continuous(limits = c(0, 100)) +
   labs(
     linetype = "Vaccinated",
     x = "",
-    y = "",
+    y = "%",
     caption = "Data: Ontario COVID-19 vaccine data and StatsCan Ontario population estimate 2020",
     title = "Ontario COVID-19 vaccination, 2020-2021",
-    subtitle = "Percentage of adult population (aged 15+)"
+    subtitle = "Percentage of adult population (aged 10+)"
   ) +
   theme(legend.position = "right", panel.grid.minor = element_blank())
 ```
