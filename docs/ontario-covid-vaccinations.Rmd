@@ -20,28 +20,14 @@ vaxxdata <-
   (
     "https://data.ontario.ca/api/3/action/datastore_search?resource_id=8a89caa9-511c-4568-af89-7f2174b4378c&limit=1000"
   ) #API set to capture first 1000 records.
-ONpop2020 <-
-  read.csv(
-    "https://www150.statcan.gc.ca/t1/tbl1/en/dtl!downloadDbLoadingData-nonTraduit.action?pid=1710000501&latestN=0&startDate=20200101&endDate=20200101&csvLocale=en&selectedMembers=%5B%5B7%5D%2C%5B1%5D%2C%5B1%2C7%2C13%2C19%2C25%2C31%2C37%2C43%2C49%2C55%2C61%2C67%2C73%2C79%2C85%2C86%2C87%2C88%2C89%2C105%2C126%2C132%2C138%5D%5D"
-  )
+
+# Get population data.
+ONpop <- ("https://data.ontario.ca/datastore/dump/775ca815-5028-4e9b-9dd4-6975ff1be021?bom=True")
+age <- read.csv(ONpop)
+latestage <- tail(age, n = 10)
+ONpop12plus <- latestage[9, 6] + latestage[1, 6] # Capture total adult 18+ and 12-17 year old population totals from the Ontario COVID-19 by age dataset. Add them together to give total vaccine eligible population.
 ```
 
-```{r population, include = FALSE}
-## Clean data  
-# Slice Ontario population estimates to obtain a value for population over 10.
-ONpop2020 <-
-  ONpop2020[c("Age.group", "VALUE")] # Keep only these columns
-ONpop2020 <-
-  ONpop2020[-c(1, 23), ] # Remove total population and median age rows
-ONpop2020all <-
-  sum(ONpop2020["VALUE"]) # obtain sum of total population as a numeric value
-ONpop2020kids <-
-  ONpop2020 %>% slice(1:2) # remove age categories 0-4, 5-9 from all population.
-ONpop2020kids <-
-  sum(ONpop2020kids["VALUE"]) # Sum the age if categories 0-4, 5-9
-ONpop2020adults <-
-  ONpop2020all - ONpop2020kids # Subtract sum total of values 0-4, 5-9from total population to obtain adult population estimate.
-```
 
 ```{r vaccination data, include = FALSE}
 # Transform vaccination data into a data frame.
@@ -50,39 +36,31 @@ vaxx <- (vaxx$result$records) # Isolate vaccination data fields
 vaxx <-
   as.data.frame(do.call(cbind, vaxx)) # Bind days into a data frame.
 vaxx <- t(vaxx) # transpose dataframe
-vaxx <- as.data.frame(vaxx) # Save as data frame.
+vaxx <- apply(vaxx, 2, function(y) sapply(y,function(x) ifelse(is.null(x),0,x))) # Replace null values with zeros.
+vaxx <- as.data.frame(vaxx)
 ```
 
 ```{r clean vaccination data, include = FALSE}
-# Clean vaccination data by removing commas and removing "_" from "_id".
-vaxx$previous_day_doses_administered <-
-  gsub(",", "", vaxx$previous_day_doses_administered)
-vaxx$total_doses_administered <-
-  gsub(",", "", vaxx$total_doses_administered)
-vaxx$total_doses_in_fully_vaccinated_individuals <-
-  gsub(",", "", vaxx$total_doses_in_fully_vaccinated_individuals)
-vaxx$total_individuals_fully_vaccinated <-
-  gsub(",", "", vaxx$total_individuals_fully_vaccinated)
+# Clean vaccination data removing "_" from "_id".
 names(vaxx)[names(vaxx) == "_id"] <- "id"
-```
 
-```{r convert vaccination data to numeric, include = FALSE}
-# Convert strings in vaccination data into numbers.
-vaxx$previous_day_doses_administered <-
-  as.numeric(as.list(vaxx$previous_day_doses_administered))
-vaxx$total_doses_administered <-
-  as.numeric(as.list(vaxx$total_doses_administered))
-vaxx$total_doses_in_fully_vaccinated_individuals <-
-  as.numeric(as.list(vaxx$total_doses_in_fully_vaccinated_individuals))
-vaxx$total_individuals_fully_vaccinated <-
-  as.numeric(as.list(vaxx$total_individuals_fully_vaccinated))
+# Convert report data to date
 vaxx$report_date <-
   ymd_hms(vaxx$report_date) # converts report date into date.
-vaxx[is.na(vaxx)] = 0 # convert NAs to zero.
+
+# Convert other columns to number
+vaxx$id <- as.numeric(as.character(vaxx$id))
+vaxx$previous_day_total_doses_administered <- as.numeric(as.character(vaxx$previous_day_total_doses_administered))
+vaxx$previous_day_at_least_one <- as.numeric(as.character(vaxx$previous_day_at_least_one))
+vaxx$previous_day_fully_vaccinated <- as.numeric(as.character(vaxx$previous_day_fully_vaccinated))
+vaxx$total_doses_administered <- as.numeric(as.character(vaxx$total_doses_administered))
+vaxx$total_individuals_at_least_one <- as.numeric(as.character(vaxx$total_individuals_at_least_one))
+vaxx$total_doses_in_fully_vaccinated_individuals <- as.numeric(as.character(vaxx$total_doses_in_fully_vaccinated_individuals))
+vaxx$total_individuals_fully_vaccinated <- as.numeric(as.character(vaxx$total_individuals_fully_vaccinated))
 ```
 
 ```{r missing christmas data, include = FALSE}
-# The province administered the first vaccine on 2020-12-14 but didn't record data until 2020-12-24. Average the reported figure for the first day in the data set over the previous ten days.
+# The province administered the first vaccine on 2020-12-14 but didn't record data until 2020-12-24.
 firstdoses <- head(vaxx$total_doses_administered, n = 1)
 firstdose2020data <- data.frame(
   "id" = 0,
@@ -97,8 +75,11 @@ firstdose2020data <- data.frame(
     "2020-12-22T00:00:00",
     "2020=12-23T00:00:00"
   ),
-  "previous_day_doses_administered" = 0,
+  "previous_day_total_doses_administered" = 0,
+  "previous_day_at_least_one" = 0,
+  "previous_day_fully_vaccinated" = 0,
   "total_doses_administered" = 0,
+  "total_individuals_at_least_one" = 0,
   "total_doses_in_fully_vaccinated_individuals" = 0,
   "total_individuals_fully_vaccinated" = 0
 )
@@ -113,16 +94,22 @@ christmas2020data <- data.frame(
     "2020-12-28T00:00:00",
     "2020-12-29T00:00:00"
   ),
-  "previous_day_doses_administered" = c(firstdoses, 0, 0, 0, 0),
+  "previous_day_total_doses_administered" = c(firstdoses, 0, 0, 0, 0),
+  "previous_day_at_least_one" = firstdoses,
+  "previous_day_fully_vaccinated" = 0,
   "total_doses_administered" = firstdoses,
+  "total_individuals_at_least_one" = firstdoses,
   "total_doses_in_fully_vaccinated_individuals" = 0,
   "total_individuals_fully_vaccinated" = 0
 )
+
 # converts report date into date.
 firstdose2020data$report_date <- ymd_hms(firstdose2020data$report)
 christmas2020data$report_date <-
   ymd_hms(christmas2020data$report_date)
+```
 
+```{r merge first doses and christmas 2020 data into data set, include = FALSE}
 vaxx <- rbind(vaxx, firstdose2020data, christmas2020data) # merge with vaxx data
 vaxx <- vaxx[order(vaxx$report_date), ] # sort by report date
 ```
@@ -137,27 +124,24 @@ vaxx$part <- ((vaxx$total_doses_administered - vaxx$total_doses_in_fully_vaccina
 vaxx$fullorpart <- ((vaxx$total_individuals_fully_vaccinated + vaxx$part))
 
 # Number of adults who are neither fully or partially vaccinated
-vaxx$none <- ((ONpop2020adults - vaxx$fullorpart))
+vaxx$none <- ((ONpop12plus - vaxx$fullorpart))
 
 # Percentage shares
 vaxx$percentagepart <-
-  ((vaxx$part / ONpop2020adults) * 100) # Part vaccinated
+  ((vaxx$part / ONpop12plus) * 100) # Part vaccinated
 vaxx$percentagefully <-
-  ((vaxx$total_individuals_fully_vaccinated / ONpop2020adults) * 100) # Fully vaccinated
-vaxx$percentagefullorpart <- ((vaxx$fullorpart / ONpop2020adults) * 100) # Fully or partly vaccinated
-vaxx$percentagenone <- ((vaxx$none / ONpop2020adults) * 100) # No vaccination
+  ((vaxx$total_individuals_fully_vaccinated / ONpop12plus) * 100) # Fully vaccinated
+vaxx$percentagefullorpart <- ((vaxx$fullorpart / ONpop12plus) * 100) # Fully or partly vaccinated
+vaxx$percentagenone <- ((vaxx$none / ONpop12plus) * 100) # No vaccination
 
 # Round percentages to two decimals
-vaxx$percentagefully <- round(vaxx$percentagefully, digits = 2)
-vaxx$percentagepart <- round(vaxx$percentagepart, digits = 2)
-vaxx$percentagefullorpart <- round(vaxx$percentagefullorpart, digits = 2)
-vaxx$percentagenone <- round(vaxx$percentagenone, digits = 2)
+vaxx$percentagefully <- round(vaxx$percentagefully, digits = 1)
+vaxx$percentagepart <- round(vaxx$percentagepart, digits = 1)
+vaxx$percentagefullorpart <- round(vaxx$percentagefullorpart, digits = 1)
+vaxx$percentagenone <- round(vaxx$percentagenone, digits = 1)
 ```
 
 ```{r unlist vaccination data, include = FALSE}
-# Unlist the vaccination data for visualisation.
-vaxx <- as.data.frame(lapply(vaxx, unlist)) # Unlist vaccination data
-
 # Subset percentage data for visualisation.
 vizfullorpart <- subset(vaxx, select = c("report_date", "percentagefullorpart"))
 vizfull <-
@@ -169,14 +153,15 @@ names(vizfullorpart)[names(vizfullorpart) == "percentagefullorpart"] <- "percent
 names(vizfull)[names(vizfull) == "percentagefully"] <- "percentage"
 names(vizpart)[names(vizpart) == "percentagepart"] <- "percentage"
 ```
-  
+
+
 ### Vaccinated
 Vaccination status as a percentage of the population
 ```{r create subset of vaccination status as percentage of adult population, include = FALSE}
 bar <- tail(vaxx, n = 1)
 bar <- subset(bar, select = c(percentagefully, percentagepart, percentagenone))
 bar <- t(bar)
-bar <- as.data.frame(bar)
+bar <- as_tibble(bar)
 row.names(bar) <- c("Fully vaccinated", "Partly vaccinated", "No vaccination")
 bar <- tibble::rownames_to_column(bar, "Status")
 colnames(bar) <- c("Status", "Percentage")
@@ -184,7 +169,15 @@ colnames(bar) <- c("Status", "Percentage")
 bar$Percentage <- round(bar$Percentage, digits = 1)
 ```
 
+```{r latest number of fully vaccinated, results = 'asis', echo = FALSE}
+latest <- subset(vaxx, select = c(report_date, total_individuals_fully_vaccinated, part, fullorpart))
+colnames(latest) <- c("Report date", "Fully", "Partly", "Fully or partly ")
+latest <- tail(latest, n = 1)
+knitr::kable(latest, row.names = FALSE, align = "c")
+```
+
 ```{r barplot visualisation of vaccination status as percentage of adult population, echo = FALSE}
+bar$Status <- factor(bar$Status, levels = c("No vaccination", "Partly vaccinated", "Fully vaccinated"))
 ggplot(bar, aes(x = "", y = Percentage, fill = Status)) +
   geom_bar(stat = "identity", width = .375) +
   geom_text(aes(label = paste0(Percentage, sep = "%")),
@@ -193,8 +186,8 @@ ggplot(bar, aes(x = "", y = Percentage, fill = Status)) +
   labs(
     x = NULL,
     y = NULL,
-    caption = "Data: Ontario COVID-19 vaccine data and StatsCan Ontario population estimate 2020",
-    title = "Ontario COVID-19 vaccination status of adult population (aged 10+)",
+    caption = "Data: Ontario COVID-19 vaccine data, Ontario COVID-19 vaccine data by age",
+    title = "Ontario COVID-19 vaccination status of population (aged 12+)",
     subtitle = Sys.Date()
   ) +
   theme_classic() +
@@ -207,12 +200,6 @@ ggplot(bar, aes(x = "", y = Percentage, fill = Status)) +
   coord_flip()
 ```
 
-```{r latest number of fully vaccinated, results = 'asis', echo = FALSE}
-latest <- subset(vaxx, select = c(report_date, total_individuals_fully_vaccinated, part, fullorpart))
-colnames(latest) <- c("Report date", "Fully", "Partly", "Fully or partly ")
-latest <- tail(latest, n = 1)
-knitr::kable(latest, row.names = FALSE, align = "c")
-```
 
 ### Progress
 ```{r vaccine percentage population visualisation, echo = FALSE}
@@ -224,16 +211,17 @@ ggplot(vizfull, aes(report_date, percentage)) +
     linetype = "Vaccinated",
     x = "",
     y = "%",
-    caption = "Data: Ontario COVID-19 vaccine data and StatsCan Ontario population estimate 2020",
+    caption = "Data: Ontario COVID-19 vaccine data, Ontario COVID-19 vaccine data by age",
     title = "Ontario COVID-19 vaccination, 2020-2021",
-    subtitle = "Percentage of adult population (aged 10+)"
+    subtitle = "Percentage of population (aged 12+)"
   ) +
   theme(legend.position = "right", panel.grid.minor = element_blank())
 ```
-  
+
+
 ### Vaccine doses
 ```{r latest number of vaccine doses, results = 'asis', echo = FALSE}
-latestdoses <- subset(vaxx, select = c(report_date, previous_day_doses_administered, total_doses_administered))
+latestdoses <- subset(vaxx, select = c(report_date, previous_day_total_doses_administered, total_doses_administered))
 colnames(latestdoses) <- c("Report date", "Previous day doses administered", "Total number of doses administered")
 latestdoses <- tail(latestdoses, n=1)
 knitr::kable(latestdoses, row.names = FALSE, align = "c")
@@ -248,7 +236,7 @@ dosesadministered <-
     vaxx,
     select = c(
       "report_date",
-      "previous_day_doses_administered",
+      "previous_day_total_doses_administered",
       "total_doses_administered"
     )
   )
@@ -289,156 +277,49 @@ ggplot() +
   )
 ```
 
-## Progress targets  
-Projecting time required at the current rate of adults (aged 15+) becoming fully vaccinated until percentages of the adult population are fully vaccinated.
+### Age group
+```{r latest age group data, echo = FALSE}
+latestage <- tail(age, n = 10) # Get the most recent values for age groups.
+latestage <- subset(latestage, Agegroup != "Adults_18plus" & Agegroup != "Undisclosed_or_missing") # Remove the adult total and NA groups.
 
-Assumptions:  
-* Population based on StatsCan's 2020 projection for Ontario minus share of the estimated under the age of 15.  
-* Average rate at which people become fully vaccinated is based on latest reported figure.  
-* Assumes vaccinations continue every day of the year.  
-
-```{r subset individuals fully vaccinated, include = FALSE}
-# Subset data on total individuals fully vaccinated.
-individualsfullyvaccinated <-
-  subset(
-    vaxx,
-    select = c(
-      "report_date",
-      "total_individuals_fully_vaccinated"
-    )
-  )
+# Add categorical variable for partly and fully vaccinated individuals.
+age1 <- latestage %>% select(Agegroup, At.least.one.dose_cumulative)
+age2 <- latestage %>% select(Agegroup, Second_dose_cumulative)
+age1 <- rename(age1, Total = At.least.one.dose_cumulative)
+age2 <- rename(age2, Total = Second_dose_cumulative)
+age1$Status <- "Partly"
+age2$Status <- "Fully"
+age <- rbind(age1, age2)
 ```
 
-```{r change in total of adults fully vaccinated, include = FALSE}
-# Calculate the daily reported change in the number of adults who become fully vaccinated.
-individualsfullyvaccinated <- individualsfullyvaccinated %>%
-    mutate(change = total_individuals_fully_vaccinated - lag(total_individuals_fully_vaccinated, default = first(total_individuals_fully_vaccinated)))
-```
-
-```{r calculate percentages of projected adult population, include = FALSE}
-# Calculate values for the percentages of the estimated Ontario adult population
-ONpop2020adult95 <- ONpop2020adults / 100 * 95
-ONpop2020adult90 <- ONpop2020adults / 100 * 90
-ONpop2020adult85 <- ONpop2020adults / 100 * 85
-ONpop2020adult80 <- ONpop2020adults / 100 * 80
-ONpop2020adult75 <- ONpop2020adults / 100 * 75
-ONpop2020adult70 <- ONpop2020adults / 100 * 70
-ONpop2020adult65 <- ONpop2020adults / 100 * 65
-ONpop2020adult60 <- ONpop2020adults / 100 * 60
-ONpop2020adult55 <- ONpop2020adults / 100 * 55
-ONpop2020adult50 <- ONpop2020adults / 100 * 50
-ONpop2020adult45 <- ONpop2020adults / 100 * 45
-ONpop2020adult40 <- ONpop2020adults / 100 * 40
-ONpop2020adult35 <- ONpop2020adults / 100 * 35
-ONpop2020adult30 <- ONpop2020adults / 100 * 30
-ONpop2020adult25 <- ONpop2020adults / 100 * 25
-ONpop2020adult20 <- ONpop2020adults / 100 * 20
-ONpop2020adult15 <- ONpop2020adults / 100 * 15
-ONpop2020adult10 <- ONpop2020adults / 100 * 10
-ONpop2020adult05 <- ONpop2020adults / 100 * 05
-```
-
-```{r latest reported population fully vaccinated total, include = FALSE}
-latestfullvaxx <- tail(vaxx$total_individuals_fully_vaccinated, n = 1)
-```
-
-```{r remaining population to be vaccinated, include = FALSE}
-# Subtract number of people fully vaccinated from population targets
-target100 <- (ONpop2020adults - latestfullvaxx)
-target95 <- (ONpop2020adult95 - latestfullvaxx)
-target90 <- (ONpop2020adult90 - latestfullvaxx)
-target85 <- (ONpop2020adult85 - latestfullvaxx)
-target80 <- (ONpop2020adult80 - latestfullvaxx)
-target75 <- (ONpop2020adult75 - latestfullvaxx)
-target70 <- (ONpop2020adult70 - latestfullvaxx)
-target65 <- (ONpop2020adult65 - latestfullvaxx)
-target60 <- (ONpop2020adult60 - latestfullvaxx)
-target55 <- (ONpop2020adult55 - latestfullvaxx)
-target50 <- (ONpop2020adult50 - latestfullvaxx)
-target45 <- (ONpop2020adult45 - latestfullvaxx)
-target40 <- (ONpop2020adult40 - latestfullvaxx)
-target35 <- (ONpop2020adult35 - latestfullvaxx)
-target30 <- (ONpop2020adult30 - latestfullvaxx)
-target25 <- (ONpop2020adult25 - latestfullvaxx)
-target20 <- (ONpop2020adult20 - latestfullvaxx)
-target15 <- (ONpop2020adult15 - latestfullvaxx)
-target10 <- (ONpop2020adult10 - latestfullvaxx)
-target05 <- (ONpop2020adult05 - latestfullvaxx)
+```{r visualisation for vaccination by age group, echo = FALSE}
+age$Status <- factor(age$Status, levels = c("Partly", "Fully"))
+ggplot(data = age, aes(x = Agegroup, y = Total, fill = Status)) +
+  geom_bar(stat = "identity") +
+   labs(
+    y = "Individuals",
+    x = "",     
+    caption = "Data: Ontario COVID-19 vaccine data by age",
+    title = "Ontario COVID-19 vaccination status of population (aged 12+)",
+    subtitle = Sys.Date()
+    ) +
+  theme(panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.major.x = element_line(colour = "grey", size = 0.25),
+          panel.grid.minor.x = element_blank(),
+        panel.background = element_rect(fill = "#FFFFFF", color = "white"),
+        ) +
+  scale_fill_brewer(palette = "Greys") +
+  coord_flip()
 ```
 
 
-```{r average number a day becomming fully vaccinated, include=FALSE}
-# Identify the average number of people a day who become fully vaccinated.
-avefullyvaxxday <- mean(individualsfullyvaccinated$change)
-```
-
-
-```{r number of days to meet full target, include = FALSE}
-# Calculate the number of days required to meet the share of the adult population vaccinated as a whole number.
-daystofull100 <- round(target100/avefullyvaxxday, digits = 0)
-daystofull95 <- round(target95/avefullyvaxxday, digits = 0)
-daystofull90 <- round(target90/avefullyvaxxday, digits = 0)
-daystofull85 <- round(target85/avefullyvaxxday, digits = 0)
-daystofull80 <- round(target80/avefullyvaxxday, digits = 0)
-daystofull75 <- round(target75/avefullyvaxxday, digits = 0)
-daystofull70 <- round(target70/avefullyvaxxday, digits = 0)
-daystofull65 <- round(target65/avefullyvaxxday, digits = 0)
-daystofull60 <- round(target60/avefullyvaxxday, digits = 0)
-daystofull55 <- round(target55/avefullyvaxxday, digits = 0)
-daystofull50 <- round(target50/avefullyvaxxday, digits = 0)
-daystofull45 <- round(target45/avefullyvaxxday, digits = 0)
-daystofull40 <- round(target40/avefullyvaxxday, digits = 0)
-daystofull35 <- round(target35/avefullyvaxxday, digits = 0)
-daystofull30 <- round(target30/avefullyvaxxday, digits = 0)
-daystofull25 <- round(target25/avefullyvaxxday, digits = 0)
-daystofull20 <- round(target20/avefullyvaxxday, digits = 0)
-daystofull15 <- round(target15/avefullyvaxxday, digits = 0)
-daystofull10 <- round(target10/avefullyvaxxday, digits = 0)
-daystofull05 <- round(target05/avefullyvaxxday, digits = 0)
-```
-
-```{r projected full date, include = FALSE}
-# Calculate projected date targets for fully vaccinated will be met from today's date.
-date100 <- Sys.Date() + daystofull100
-date95 <- Sys.Date() + daystofull95
-date90 <- Sys.Date() + daystofull90
-date85 <- Sys.Date() + daystofull85
-date80 <- Sys.Date() + daystofull80
-date75 <- Sys.Date() + daystofull75
-date70 <- Sys.Date() + daystofull70
-date65 <- Sys.Date() + daystofull65
-date60 <- Sys.Date() + daystofull60
-date55 <- Sys.Date() + daystofull55
-date50 <- Sys.Date() + daystofull50
-date45 <- Sys.Date() + daystofull45
-date40 <- Sys.Date() + daystofull40
-date35 <- Sys.Date() + daystofull35
-date30 <- Sys.Date() + daystofull30
-date25 <- Sys.Date() + daystofull25
-date20 <- Sys.Date() + daystofull20
-date15 <- Sys.Date() + daystofull15
-date10 <- Sys.Date() + daystofull10
-date05 <- Sys.Date() + daystofull05
-
-```
-
-```{r create vaccination targets data frame, echo = FALSE}
-# Create data frame for predicted vaccination targets
-targets0 <- c("100%", "95%", "90%", "85%", "80%", "75%", "70%", "65%", "60%", "55%", "50%", "45%", "40%", "35%", "30%", "25%", "20%", "15%", "10%", "05%") # column names
-targets1 <- c(daystofull100, daystofull95, daystofull90, daystofull85, daystofull80, daystofull75, daystofull70, daystofull65, daystofull60, daystofull55, daystofull50, daystofull45, daystofull40, daystofull35, daystofull30, daystofull25, daystofull20, daystofull15, daystofull10, daystofull05) # projected number of days to meet target
-targets2 <- c(date100, date95, date90, date85, date80, date75, date70 ,date65, date60, date55, date50, date45, date40, date35, date30, date25, date20, date15, date10, date05) # projected date target will be met
-
-# Bind data frame together
-targets <- data.frame(targets0, targets1, targets2)
-names(targets) <- c("Population vaccination target", "Projected days to full vaccination", "Projected date for full vaccination") # rename columns
-knitr::kable(targets, align = "c")
-```
 
 ## Citations
 ### Data
 Ontario COVID-19 Vaccine Data https://data.ontario.ca/dataset/covid-19-vaccine-data-in-ontario/resource/8a89caa9-511c-4568-af89-7f2174b4378c?view_id=9e42f55b-723f-46dd-b0d9-643670e01fed published under Open Government Licence – Ontario version 1.0 (https://www.ontario.ca/page/open-government-licence-ontario)
 
-Statistics Canada. Table 17-10-0005-01  Population estimates on July 1st, by age and sex. https://doi.org/10.25318/1710000501-eng published under Statistics Canada Open Licence https://www.statcan.gc.ca/eng/reference/licence
+Ontario COVID-19 Vaccine Data by Age https://data.ontario.ca/dataset/covid-19-vaccine-data-in-ontario/resource/775ca815-5028-4e9b-9dd4-6975ff1be021 published under Open Government Licence – Ontario version 1.0 (https://www.ontario.ca/page/open-government-licence-ontario)
 
 ### Code
 Horton, L. (2021). Ontario Covid Vaccinations. *GitHub repository*, https://github.com/laurencehorton/ontario-covid-vaccinations published under Creative Commons Zero v1.0 Universal https://github.com/laurencehorton/ontario-covid-vaccinations/blob/main/LICENSE 
