@@ -19,6 +19,8 @@ Grolemund, G., Wickham, H. (2011). Dates and times made easy with {lubridate}, *
 
 R Core Team. (2018). *R: A Language and Environment for Statistical Computing. R Foundation for Statistical Computing*, https://www.R-project.org/  
 
-Wickham, H. et. al. (2019). Welcome to the {tidyverse}, *Journal of Open Source Software, 4*(43), 1686. https://doi.org/10.21105/joss.01686  
+Wickham, H. et. al. (2019). Welcome to the {tidyverse}, *Journal of Open Source Software, 4*(43), 1686. https://doi.org/10.21105/joss.01686
+
+Wickham, H., Bryan, J. (2019). *readxl: Read Excel Files. R package version 1.3.1.* https://CRAN.R-project.org/package=readxl
 
 Xie, Y. (2021). knitr: A General-Purpose Package for Dynamic Report Generation in R, *R package version 1.31*, https://yihui.org/knitr/
