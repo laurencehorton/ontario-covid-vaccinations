@@ -332,7 +332,7 @@ names(fsa2)[names(fsa2) == "% Vaccinated with both doses\r\n(All ages, including
 ```
 
 ```{r keep only colums wanted, echo = FALSE}
-# We only want to keep the FAS region and percentage vaccinated for all ages columns.
+# We only want to keep the FSA region and percentage vaccinated for all ages columns.
 fsa1 <- select(fsa1, FSA, onedose)
 fsa2 <- select(fsa2, FSA, bothdose)
 ```
