@@ -322,8 +322,8 @@ download.file("https://www.ices.on.ca/~/media/Files/COVID-19/ICES-COVID19-Vaccin
 ```
 
 ```{r download region data, echo = FALSE}
-fsa1 <- read_xlsx("ICES-COVID19-Vaccination-Data-by-FSA.xlsx", sheet = "At least 1 Dose Vaccine by FSA", skip = 23, col_names = TRUE)
-fsa2 <- read_excel("ICES-COVID19-Vaccination-Data-by-FSA.xlsx", sheet = "Both Dose Vaccination by FSA", skip = 23, col_names = TRUE)
+fsa1 <- tibble(read_xlsx("ICES-COVID19-Vaccination-Data-by-FSA.xlsx", sheet = "At least 1 Dose Vaccine by FSA", skip = 23, col_names = TRUE))
+fsa2 <- tibble(read_xlsx("ICES-COVID19-Vaccination-Data-by-FSA.xlsx", sheet = "Both Dose Vaccination by FSA", skip = 23, col_names = TRUE))
 ```
 
 ```{r rename columns in region data, echo = FALSE}
@@ -339,7 +339,7 @@ fsa2 <- select(fsa2, FSA, bothdose)
 
 ```{r merge data from the two worksheets into one data frame, echo = FALSE}
 # Merge on the FSA value
-fsavaxx <- merge(fsa1, fsa2, by.x = "FSA")
+fsavaxx <- tibble(merge(fsa1, fsa2, by.x = "FSA"))
 ```
 
 ```{r create region variable, echo = FALSE}
@@ -382,8 +382,8 @@ region_mean <- tibble::rownames_to_column(region_mean, "Region") # make sure fir
 
 ```{r set up a data frame for visualisation, echo = FALSE}
 # Break into separate data frames depending on one dose or both dose values
-region_viz1 <- region_mean %>% select(Region, onedose)
-region_viz2 <- region_mean %>% select(Region, bothdose)
+region_viz1 <- tibble(region_mean %>% select(Region, onedose))
+region_viz2 <- tibble(region_mean %>% select(Region, bothdose))
 
 # Standardise the column name for percentage values in those data frames
 names(region_viz1)[names(region_viz1) == "onedose"] <- "Percent"
@@ -398,7 +398,10 @@ region_viz1 <- mutate(region_viz1, Status = "Partly")
 region_viz2 <- mutate(region_viz2, Status = "Fully")
 
 # Bind the two subsets together
-region_viz <- rbind(region_viz1, region_viz2)
+region_viz <- tibble(rbind(region_viz1, region_viz2))
+
+# Rounds percent value to one digit.
+region_viz$Percent <- round(region_viz$Percent, digits = 1)
 
 # Order them for visualisation on one dose vale first in the bar chart.
 region_viz$Status <- factor(region_viz$Status, levels = c("Partly", "Fully"))
@@ -407,6 +410,9 @@ region_viz$Status <- factor(region_viz$Status, levels = c("Partly", "Fully"))
 ```{r stacked bar chart visualisation for region, echo = FALSE}
 ggplot(data = region_viz, aes(x = Region, y = Percent, fill = Status)) +
   geom_bar(stat = "identity") +
+    geom_text(aes(label = paste0(Percent, sep = "%")),
+            position = position_stack(vjust = .5),
+            size = 2.5) +
   scale_y_continuous(limits = c(0, 100)) +
   labs(
     y = "%",
