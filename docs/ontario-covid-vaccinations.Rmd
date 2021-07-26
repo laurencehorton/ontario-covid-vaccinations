@@ -8,7 +8,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r packages, include = FALSE}
-# install.packages(c("rjson", "tidyverse", "lubridate", "knitr"))
+# install.packages(c("rjson", "tidyverse", "lubridate", "knitr", "readxl"))
 library(knitr) # formatting tables in markdown
 library(rjson) # for reading api
 library(tidyverse) # for visualisations
@@ -23,12 +23,15 @@ vaxxdata <-
   ) #API set to capture first 1000 records.
 
 # Get population data.
-ONpop <- ("https://data.ontario.ca/datastore/dump/775ca815-5028-4e9b-9dd4-6975ff1be021?bom=True")
+ONpop <-
+  (
+    "https://data.ontario.ca/datastore/dump/775ca815-5028-4e9b-9dd4-6975ff1be021?bom=True"
+  )
 age <- read.csv(ONpop)
 latestage <- tail(age, n = 10)
-ONpop12plus <- latestage[9, 6] + latestage[1, 6] # Capture total adult 18+ and 12-17 year old population totals from the Ontario COVID-19 by age dataset. Add them together to give total vaccine eligible population.
+ONpop12plus <-
+  latestage[9, 6] + latestage[1, 6] # Capture total adult 18+ and 12-17 year old population totals from the Ontario COVID-19 by age dataset. Add them together to give total vaccine eligible population.
 ```
-
 
 ```{r vaccination data, include = FALSE}
 # Transform vaccination data into a data frame.
@@ -37,7 +40,10 @@ vaxx <- (vaxx$result$records) # Isolate vaccination data fields
 vaxx <-
   as.data.frame(do.call(cbind, vaxx)) # Bind days into a data frame.
 vaxx <- t(vaxx) # transpose dataframe
-vaxx <- apply(vaxx, 2, function(y) sapply(y,function(x) ifelse(is.null(x),0,x))) # Replace null values with zeros.
+vaxx <-
+  apply(vaxx, 2, function(y)
+    sapply(y, function(x)
+      ifelse(is.null(x), 0, x))) # Replace null values with zeros.
 vaxx <- as.data.frame(vaxx)
 ```
 
@@ -51,13 +57,20 @@ vaxx$report_date <-
 
 # Convert other columns to number
 vaxx$id <- as.numeric(as.character(vaxx$id))
-vaxx$previous_day_total_doses_administered <- as.numeric(as.character(vaxx$previous_day_total_doses_administered))
-vaxx$previous_day_at_least_one <- as.numeric(as.character(vaxx$previous_day_at_least_one))
-vaxx$previous_day_fully_vaccinated <- as.numeric(as.character(vaxx$previous_day_fully_vaccinated))
-vaxx$total_doses_administered <- as.numeric(as.character(vaxx$total_doses_administered))
-vaxx$total_individuals_at_least_one <- as.numeric(as.character(vaxx$total_individuals_at_least_one))
-vaxx$total_doses_in_fully_vaccinated_individuals <- as.numeric(as.character(vaxx$total_doses_in_fully_vaccinated_individuals))
-vaxx$total_individuals_fully_vaccinated <- as.numeric(as.character(vaxx$total_individuals_fully_vaccinated))
+vaxx$previous_day_total_doses_administered <-
+  as.numeric(as.character(vaxx$previous_day_total_doses_administered))
+vaxx$previous_day_at_least_one <-
+  as.numeric(as.character(vaxx$previous_day_at_least_one))
+vaxx$previous_day_fully_vaccinated <-
+  as.numeric(as.character(vaxx$previous_day_fully_vaccinated))
+vaxx$total_doses_administered <-
+  as.numeric(as.character(vaxx$total_doses_administered))
+vaxx$total_individuals_at_least_one <-
+  as.numeric(as.character(vaxx$total_individuals_at_least_one))
+vaxx$total_doses_in_fully_vaccinated_individuals <-
+  as.numeric(as.character(vaxx$total_doses_in_fully_vaccinated_individuals))
+vaxx$total_individuals_fully_vaccinated <-
+  as.numeric(as.character(vaxx$total_individuals_fully_vaccinated))
 ```
 
 ```{r missing christmas data, include = FALSE}
@@ -111,18 +124,24 @@ christmas2020data$report_date <-
 ```
 
 ```{r merge first doses and christmas 2020 data into data set, include = FALSE}
-vaxx <- rbind(vaxx, firstdose2020data, christmas2020data) # merge with vaxx data
-vaxx <- vaxx[order(vaxx$report_date), ] # sort by report date
+vaxx <-
+  rbind(vaxx, firstdose2020data, christmas2020data) # merge with vaxx data
+vaxx <- vaxx[order(vaxx$report_date),] # sort by report date
 ```
 
 ```{r create vaccination percentages, include = FALSE}
 # Calculate new columns for vaccination of percentages of adults either partly vaccinated or fully vaccinated using adult population estimate.
 
 # Total number of partially vaccinated adults
-vaxx$part <- ((vaxx$total_doses_administered - vaxx$total_doses_in_fully_vaccinated_individuals))
+vaxx$part <-
+  ((
+    vaxx$total_doses_administered - vaxx$total_doses_in_fully_vaccinated_individuals
+  )
+  )
 
 # Total number of adults either fully or partially vaccinated
-vaxx$fullorpart <- ((vaxx$total_individuals_fully_vaccinated + vaxx$part))
+vaxx$fullorpart <-
+  ((vaxx$total_individuals_fully_vaccinated + vaxx$part))
 
 # Number of adults who are neither fully or partially vaccinated
 vaxx$none <- ((ONpop12plus - vaxx$fullorpart))
@@ -132,25 +151,30 @@ vaxx$percentagepart <-
   ((vaxx$part / ONpop12plus) * 100) # Part vaccinated
 vaxx$percentagefully <-
   ((vaxx$total_individuals_fully_vaccinated / ONpop12plus) * 100) # Fully vaccinated
-vaxx$percentagefullorpart <- ((vaxx$fullorpart / ONpop12plus) * 100) # Fully or partly vaccinated
-vaxx$percentagenone <- ((vaxx$none / ONpop12plus) * 100) # No vaccination
+vaxx$percentagefullorpart <-
+  ((vaxx$fullorpart / ONpop12plus) * 100) # Fully or partly vaccinated
+vaxx$percentagenone <-
+  ((vaxx$none / ONpop12plus) * 100) # No vaccination
 
 # Round percentages to two decimals
 vaxx$percentagefully <- round(vaxx$percentagefully, digits = 1)
 vaxx$percentagepart <- round(vaxx$percentagepart, digits = 1)
-vaxx$percentagefullorpart <- round(vaxx$percentagefullorpart, digits = 1)
+vaxx$percentagefullorpart <-
+  round(vaxx$percentagefullorpart, digits = 1)
 vaxx$percentagenone <- round(vaxx$percentagenone, digits = 1)
 ```
 
 ```{r unlist vaccination data, include = FALSE}
 # Subset percentage data for visualisation.
-vizfullorpart <- subset(vaxx, select = c("report_date", "percentagefullorpart"))
+vizfullorpart <-
+  subset(vaxx, select = c("report_date", "percentagefullorpart"))
 vizfull <-
   subset(vaxx, select = c("report_date", "percentagefully"))
 vizpart <- subset(vaxx, select = c("report_date", "percentagepart"))
 
 # standardise column names
-names(vizfullorpart)[names(vizfullorpart) == "percentagefullorpart"] <- "percentage"
+names(vizfullorpart)[names(vizfullorpart) == "percentagefullorpart"] <-
+  "percentage"
 names(vizfull)[names(vizfull) == "percentagefully"] <- "percentage"
 names(vizpart)[names(vizpart) == "percentagepart"] <- "percentage"
 ```
@@ -160,10 +184,12 @@ names(vizpart)[names(vizpart) == "percentagepart"] <- "percentage"
 Vaccination status as a percentage of the population
 ```{r create subset of vaccination status as percentage of adult population, include = FALSE}
 bar <- tail(vaxx, n = 1)
-bar <- subset(bar, select = c(percentagefully, percentagepart, percentagenone))
+bar <-
+  subset(bar, select = c(percentagefully, percentagepart, percentagenone))
 bar <- t(bar)
 bar <- as_tibble(bar)
-row.names(bar) <- c("Fully vaccinated", "Partly vaccinated", "No vaccination")
+row.names(bar) <-
+  c("Fully vaccinated", "Partly vaccinated", "No vaccination")
 bar <- tibble::rownames_to_column(bar, "Status")
 colnames(bar) <- c("Status", "Percentage")
 # Round percentages to two decimals
@@ -171,14 +197,24 @@ bar$Percentage <- round(bar$Percentage, digits = 1)
 ```
 
 ```{r latest number of fully vaccinated, results = 'asis', echo = FALSE}
-latest <- subset(vaxx, select = c(report_date, total_individuals_fully_vaccinated, part, fullorpart))
-colnames(latest) <- c("Report date", "Fully", "Partly", "Fully or partly ")
+latest <-
+  subset(vaxx,
+         select = c(
+           report_date,
+           total_individuals_fully_vaccinated,
+           part,
+           fullorpart
+         ))
+colnames(latest) <-
+  c("Report date", "Fully", "Partly", "Fully or partly ")
 latest <- tail(latest, n = 1)
 knitr::kable(latest, row.names = FALSE, align = "c")
 ```
 
 ```{r barplot visualisation of vaccination status as percentage of adult population, echo = FALSE}
-bar$Status <- factor(bar$Status, levels = c("No vaccination", "Partly vaccinated", "Fully vaccinated"))
+bar$Status <-
+  factor(bar$Status,
+         levels = c("No vaccination", "Partly vaccinated", "Fully vaccinated"))
 ggplot(bar, aes(x = "", y = Percentage, fill = Status)) +
   geom_bar(stat = "identity", width = .375) +
   geom_text(aes(label = paste0(Percentage, sep = "%")),
@@ -222,9 +258,20 @@ ggplot(vizfull, aes(report_date, percentage)) +
 
 ### Vaccine doses
 ```{r latest number of vaccine doses, results = 'asis', echo = FALSE}
-latestdoses <- subset(vaxx, select = c(report_date, previous_day_total_doses_administered, total_doses_administered))
-colnames(latestdoses) <- c("Report date", "Previous day doses administered", "Total number of doses administered")
-latestdoses <- tail(latestdoses, n=1)
+latestdoses <-
+  subset(
+    vaxx,
+    select = c(
+      report_date,
+      previous_day_total_doses_administered,
+      total_doses_administered
+    )
+  )
+colnames(latestdoses) <-
+  c("Report date",
+    "Previous day doses administered",
+    "Total number of doses administered")
+latestdoses <- tail(latestdoses, n = 1)
 knitr::kable(latestdoses, row.names = FALSE, align = "c")
 ```
   
@@ -269,7 +316,7 @@ ggplot() +
   ) +
   scale_x_date(name = "") +
   scale_y_continuous(name = "Daily doses",
-                     sec.axis = sec_axis( ~ . / 10000, name = "Cumilative (million)")) +
+                     sec.axis = sec_axis(~ . / 10000, name = "Cumilative (million)")) +
   theme(
     axis.title.y = element_text(color = "black"),
     axis.title.y.right = element_text(color = "blue"),
@@ -280,8 +327,13 @@ ggplot() +
 
 ### Age group
 ```{r latest age group data, echo = FALSE}
-latestage <- tail(age, n = 10) # Get the most recent values for age groups.
-latestage <- subset(latestage, Agegroup != "Adults_18plus" & Agegroup != "Undisclosed_or_missing") # Remove the adult total and NA groups.
+latestage <-
+  subset(latestage,
+         Agegroup != "Adults_18plus" &
+           Agegroup != "Undisclosed_or_missing") # Remove the adult total and NA groups.
+latestage <-
+  mutate(latestage,
+         At.least.one.dose_cumulative = At.least.one.dose_cumulative - Second_dose_cumulative) # Subtract Second dose total from at least one total.
 
 # Add categorical variable for partly and fully vaccinated individuals.
 age1 <- latestage %>% select(Agegroup, At.least.one.dose_cumulative)
@@ -297,19 +349,20 @@ age <- rbind(age1, age2)
 age$Status <- factor(age$Status, levels = c("Partly", "Fully"))
 ggplot(data = age, aes(x = Agegroup, y = Total, fill = Status)) +
   geom_bar(stat = "identity") +
-   labs(
+  labs(
     y = "Individuals",
-    x = "",     
+    x = "",
     caption = "Data: Ontario COVID-19 vaccine data by age",
     title = "Ontario COVID-19 vaccination status of population (aged 12+)",
     subtitle = Sys.Date()
-    ) +
-  theme(panel.grid.major.y = element_blank(),
-        panel.grid.minor.y = element_blank(),
-        panel.grid.major.x = element_line(colour = "grey", size = 0.25),
-          panel.grid.minor.x = element_blank(),
-        panel.background = element_rect(fill = "#FFFFFF", color = "white"),
-        ) +
+  ) +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_line(colour = "grey", size = 0.25),
+    panel.grid.minor.x = element_blank(),
+    panel.background = element_rect(fill = "#FFFFFF", color = "white"),
+  ) +
   scale_fill_brewer(palette = "Greys") +
   coord_flip()
 ```
@@ -318,17 +371,38 @@ ggplot(data = age, aes(x = Agegroup, y = Total, fill = Status)) +
 ```{r create region download file, include = FALSE}
 # Copy link does not point to a file directly. Need to create a spreadsheet in which to download data.
 file.create("ICES-COVID19-Vaccination-Data-by-FSA.xlsx")
-download.file("https://www.ices.on.ca/~/media/Files/COVID-19/ICES-COVID19-Vaccination-Data-by-FSA.ashx?la=en-CA", "ICES-COVID19-Vaccination-Data-by-FSA.xlsx")
+download.file(
+  "https://www.ices.on.ca/~/media/Files/COVID-19/ICES-COVID19-Vaccination-Data-by-FSA.ashx?la=en-CA",
+  "ICES-COVID19-Vaccination-Data-by-FSA.xlsx"
+)
 ```
 
 ```{r download region data, echo = FALSE}
-fsa1 <- tibble(read_xlsx("ICES-COVID19-Vaccination-Data-by-FSA.xlsx", sheet = "At least 1 Dose Vaccine by FSA", skip = 23, col_names = TRUE))
-fsa2 <- tibble(read_xlsx("ICES-COVID19-Vaccination-Data-by-FSA.xlsx", sheet = "Both Dose Vaccination by FSA", skip = 23, col_names = TRUE))
+fsa1 <-
+  tibble(
+    read_xlsx(
+      "ICES-COVID19-Vaccination-Data-by-FSA.xlsx",
+      sheet = "At least 1 Dose Vaccine by FSA",
+      skip = 23,
+      col_names = TRUE
+    )
+  )
+fsa2 <-
+  tibble(
+    read_xlsx(
+      "ICES-COVID19-Vaccination-Data-by-FSA.xlsx",
+      sheet = "Both Dose Vaccination by FSA",
+      skip = 23,
+      col_names = TRUE
+    )
+  )
 ```
 
 ```{r rename columns in region data, echo = FALSE}
-names(fsa1)[names(fsa1) == "% Vaccinated with at least 1 dose\r\n(All ages, including <12 and undocumented age)"] <- "onedose"
-names(fsa2)[names(fsa2) == "% Vaccinated with both doses\r\n(All ages, including <12 and undocumented age)"] <- "bothdose"
+names(fsa1)[names(fsa1) == "% Vaccinated with at least 1 dose\r\n(All ages, including <12 and undocumented age)"] <-
+  "onedose"
+names(fsa2)[names(fsa2) == "% Vaccinated with both doses\r\n(All ages, including <12 and undocumented age)"] <-
+  "bothdose"
 ```
 
 ```{r keep only colums wanted, echo = FALSE}
@@ -359,25 +433,27 @@ fsavaxx$region <- recode_factor(
 
 ```{r create subsets by region, echo = FALSE}
 # Split the data frame into sub-sets based on their region.
-eastern <- fsavaxx[fsavaxx$region == "Eastern",]
-central <- fsavaxx[fsavaxx$region == "Central",]
-toronto <- fsavaxx[fsavaxx$region == "Toronto",]
-western <- fsavaxx[fsavaxx$region == "Western",]
-northern <- fsavaxx[fsavaxx$region == "Northern",]
+eastern <- fsavaxx[fsavaxx$region == "Eastern", ]
+central <- fsavaxx[fsavaxx$region == "Central", ]
+toronto <- fsavaxx[fsavaxx$region == "Toronto", ]
+western <- fsavaxx[fsavaxx$region == "Western", ]
+northern <- fsavaxx[fsavaxx$region == "Northern", ]
 ```
 
 ```{r average percent value for each region, echo = FALSE}
 # Find the mean value for percentages vaccinated with one dose and both doses for each region,
-Eastern <- colMeans(eastern[ , c("onedose", "bothdose")])
-Central <- colMeans(central[ , c("onedose", "bothdose")])
-Toronto <- colMeans(toronto[ , c("onedose", "bothdose")])
-Western <- colMeans(western[ , c("onedose", "bothdose")])
-Northern <- colMeans(northern[ , c("onedose", "bothdose")])
+Eastern <- colMeans(eastern[, c("onedose", "bothdose")])
+Central <- colMeans(central[, c("onedose", "bothdose")])
+Toronto <- colMeans(toronto[, c("onedose", "bothdose")])
+Western <- colMeans(western[, c("onedose", "bothdose")])
+Northern <- colMeans(northern[, c("onedose", "bothdose")])
 ```
 
 ```{r bind region means into a tibble, echo = FALSE}
-region_mean <- as.data.frame(rbind(Eastern, Central, Toronto, Western, Northern))
-region_mean <- tibble::rownames_to_column(region_mean, "Region") # make sure first row is column names
+region_mean <-
+  as.data.frame(rbind(Eastern, Central, Toronto, Western, Northern))
+region_mean <-
+  tibble::rownames_to_column(region_mean, "Region") # make sure first row is column names
 ```
 
 ```{r set up a data frame for visualisation, echo = FALSE}
@@ -386,46 +462,80 @@ region_viz1 <- tibble(region_mean %>% select(Region, onedose))
 region_viz2 <- tibble(region_mean %>% select(Region, bothdose))
 
 # Standardise the column name for percentage values in those data frames
-names(region_viz1)[names(region_viz1) == "onedose"] <- "Percent"
-names(region_viz2)[names(region_viz2) == "bothdose"] <- "Percent" 
+region_viz1 <- region_viz1 %>% rename(PartRegion = Region)
+region_viz2 <- region_viz2 %>% rename(FullRegion = Region)
 
 # Multiply values by 100
-region_viz1$Percent <- region_viz1$Percent * 100
-region_viz2$Percent <- region_viz2$Percent * 100
+region_viz1$onedose <- region_viz1$onedose * 100
+region_viz2$bothdose <- region_viz2$bothdose * 100
 
 # Add a category column for both subsets depending on their states as either a one dose or both dose value.
-region_viz1 <- mutate(region_viz1, Status = "Partly")
-region_viz2 <- mutate(region_viz2, Status = "Fully")
+region_viz1 <- mutate(region_viz1, PartStatus = "Partly")
+region_viz2 <- mutate(region_viz2, FullStatus = "Fully")
 
-# Bind the two subsets together
-region_viz <- tibble(rbind(region_viz1, region_viz2))
+# Bind the two subsets together as columns.
+region_viz <- cbind(region_viz1, region_viz2) # bind
+region_viz <-
+  region_viz %>% mutate(onedose = onedose - bothdose) # Difference between full and part vaccinated
+region_viz <- region_viz %>% mutate(
+  NoRegion = FullRegion,
+  nodose = 100 - (onedose + bothdose),
+  NoStatus = "None"
+) # Calculate percentage not vaccinated.
+
+# Write back to indivisual tables.
+region_viz1 <- select(region_viz, PartRegion, onedose, PartStatus)
+region_viz2 <- select(region_viz, FullRegion, bothdose, FullStatus)
+region_viz3 <- select(region_viz, NoRegion, nodose, NoStatus)
+
+# Rename columns for consistency
+region_viz1 <-
+  rename(region_viz1,
+         Region = PartRegion,
+         Percent = onedose,
+         Status = PartStatus)
+region_viz2 <-
+  rename(region_viz2,
+         Region = FullRegion,
+         Percent = bothdose,
+         Status = FullStatus)
+region_viz3 <-
+  rename(region_viz3,
+         Region =  NoRegion,
+         Percent = nodose,
+         Status = NoStatus)
+
+# Bind together Full, Part, and No vaccination subsets.
+region_viz <- tibble(rbind(region_viz1, region_viz2, region_viz3))
 
 # Rounds percent value to one digit.
-region_viz$Percent <- round(region_viz$Percent, digits = 1)
+region_viz$Percent <- round(region_viz$Percent, digits = 0)
 
 # Order them for visualisation on one dose vale first in the bar chart.
-region_viz$Status <- factor(region_viz$Status, levels = c("Partly", "Fully"))
+region_viz$Status <-
+  factor(region_viz$Status, levels = c("None", "Partly", "Fully"))
 ```
 
 ```{r stacked bar chart visualisation for region, echo = FALSE}
 ggplot(data = region_viz, aes(x = Region, y = Percent, fill = Status)) +
   geom_bar(stat = "identity") +
-    geom_text(aes(label = paste0(Percent, sep = "%")),
+  geom_text(aes(label = paste0(Percent, sep = "%")),
             position = position_stack(vjust = .5),
             size = 2.5) +
   scale_y_continuous(limits = c(0, 100)) +
   labs(
     y = "%",
-    x = "",     
+    x = "",
     caption = "Data: ICES COVID-19 Dashboard vaccine coverage estimates for selected age groups by Forward Sortation Areas (FSAs).",
     title = "Estimated Ontario COVID-19 vaccination status of population (aged 12+)\npercentage by FSA region",
     subtitle = Sys.Date()
   ) +
-  theme(panel.grid.major.y = element_blank(),
-        panel.grid.minor.y = element_blank(),
-        panel.grid.major.x = element_line(colour = "grey", size = 0.25),
-        panel.grid.minor.x = element_blank(),
-        panel.background = element_rect(fill = "#FFFFFF", color = "white"),
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_line(colour = "grey", size = 0.25),
+    panel.grid.minor.x = element_blank(),
+    panel.background = element_rect(fill = "#FFFFFF", color = "white"),
   ) +
   scale_fill_brewer(palette = "Greys") +
   coord_flip()
