@@ -28,9 +28,9 @@ ONpop <-
     "https://data.ontario.ca/datastore/dump/775ca815-5028-4e9b-9dd4-6975ff1be021?bom=True"
   )
 age <- read.csv(ONpop)
-latestage <- tail(age, n = 10)
+latestage <- tail(age, n = 11)
 ONpop12plus <-
-  latestage[9, 6] + latestage[1, 6] # Capture total adult 18+ and 12-17 year old population totals from the Ontario COVID-19 by age dataset. Add them together to give total vaccine eligible population.
+  latestage[10, 6]  # Capture total  12+ population total from the Ontario COVID-19 by age dataset.
 ```
 
 ```{r vaccination data, include = FALSE}
@@ -327,10 +327,13 @@ ggplot() +
 
 ### Age group
 ```{r latest age group data, echo = FALSE}
+latestage <- select(latestage, Agegroup, At.least.one.dose_cumulative, Second_dose_cumulative, Total.population, Percent_at_least_one_dose, Percent_fully_vaccinated)
+
 latestage <-
   subset(latestage,
          Agegroup != "Adults_18plus" &
-           Agegroup != "Undisclosed_or_missing") # Remove the adult total and NA groups.
+           Agegroup != "Undisclosed_or_missing" &
+           Agegroup != "Ontario_12plus") # Remove the adult total, 12+ total, and NA groups.
 latestage <-
   mutate(latestage,
          At.least.one.dose_cumulative = (At.least.one.dose_cumulative - Second_dose_cumulative) * -1) # Subtract Second dose total from at least one total. Multiply by -1 to get a negative number
