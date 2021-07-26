@@ -333,7 +333,7 @@ latestage <-
            Agegroup != "Undisclosed_or_missing") # Remove the adult total and NA groups.
 latestage <-
   mutate(latestage,
-         At.least.one.dose_cumulative = At.least.one.dose_cumulative - Second_dose_cumulative) # Subtract Second dose total from at least one total.
+         At.least.one.dose_cumulative = (At.least.one.dose_cumulative - Second_dose_cumulative) * -1) # Subtract Second dose total from at least one total. Multiply by -1 to get a negative number
 
 # Add categorical variable for partly and fully vaccinated individuals.
 age1 <- latestage %>% select(Agegroup, At.least.one.dose_cumulative)
