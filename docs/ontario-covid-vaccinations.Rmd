@@ -371,6 +371,7 @@ ggplot(data = age, aes(x = Agegroup, y = Total, fill = Status)) +
 ```
 
 ### Region
+Data are updated on a weekly basis.
 ```{r create region download file, include = FALSE}
 # Copy link does not point to a file directly. Need to create a spreadsheet in which to download data.
 file.create("ICES-COVID19-Vaccination-Data-by-FSA.xlsx")
