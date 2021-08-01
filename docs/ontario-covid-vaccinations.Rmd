@@ -327,22 +327,37 @@ ggplot() +
 
 ### Age group
 ```{r latest age group data, echo = FALSE}
-latestage <- select(latestage, Agegroup, At.least.one.dose_cumulative, Second_dose_cumulative, Total.population, Percent_at_least_one_dose, Percent_fully_vaccinated)
+agerecent <-
+  select(
+    latestage,
+    Agegroup,
+    At.least.one.dose_cumulative,
+    Second_dose_cumulative,
+    Total.population
+  )
 
-latestage <-
-  subset(latestage,
-         Agegroup != "Adults_18plus" &
-           Agegroup != "Undisclosed_or_missing" &
-           Agegroup != "Ontario_12plus") # Remove the adult total, 12+ total, and NA groups.
-latestage <-
-  mutate(latestage,
-         At.least.one.dose_cumulative = (At.least.one.dose_cumulative - Second_dose_cumulative) * -1) # Subtract Second dose total from at least one total. Multiply by -1 to get a negative number
+agerecent <-
+  subset(
+    agerecent,
+    Agegroup != "Adults_18plus" &
+      Agegroup != "Undisclosed_or_missing" &
+      Agegroup != "Ontario_12plus"
+  ) # Remove the adult total, 12+ total, and NA groups.
+
+# Subtract Second dose total from at least one total
+agerecent <-
+  mutate(agerecent,
+         At.least.one.dose = At.least.one.dose_cumulative - Second_dose_cumulative)
+
+# Convert to percentages. Multiply one dose percentage by -1 to give a negative number for visualisation.
+agerecent <-
+  agerecent %>% mutate(one.dose_pct = At.least.one.dose / Total.population * 100) %>% mutate(two.dose_pct = Second_dose_cumulative / Total.population * 100) %>% mutate(one.dose_pct = one.dose_pct * -1)
 
 # Add categorical variable for partly and fully vaccinated individuals.
-age1 <- latestage %>% select(Agegroup, At.least.one.dose_cumulative)
-age2 <- latestage %>% select(Agegroup, Second_dose_cumulative)
-age1 <- rename(age1, Total = At.least.one.dose_cumulative)
-age2 <- rename(age2, Total = Second_dose_cumulative)
+age1 <- agerecent %>% select(Agegroup, one.dose_pct)
+age2 <- agerecent %>% select(Agegroup, two.dose_pct)
+age1 <- rename(age1, Total = one.dose_pct)
+age2 <- rename(age2, Total = two.dose_pct)
 age1$Status <- "Partly"
 age2$Status <- "Fully"
 age <- rbind(age1, age2)
@@ -353,7 +368,7 @@ age$Status <- factor(age$Status, levels = c("Partly", "Fully"))
 ggplot(data = age, aes(x = Agegroup, y = Total, fill = Status)) +
   geom_bar(stat = "identity") +
   labs(
-    y = "Individuals",
+    y = "% of age group",
     x = "",
     caption = "Data: Ontario COVID-19 vaccine data by age",
     title = "Ontario COVID-19 vaccination status of population (aged 12+)",
