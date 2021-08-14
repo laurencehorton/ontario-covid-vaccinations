@@ -14,6 +14,7 @@ library(rjson) # for reading api
 library(tidyverse) # for visualisations
 library(lubridate) # for converting character strings to dates
 library(readxl) # for reading Excel spreadsheets into R
+library(stringr) # For converting text to title case
 ```
 
 ```{r data sources, include = FALSE}
@@ -31,6 +32,10 @@ age <- read.csv(ONpop)
 latestage <- tail(age, n = 11)
 ONpop12plus <-
   latestage[10, 6]  # Capture total  12+ population total from the Ontario COVID-19 by age dataset.
+PHU <-
+  read.csv(
+    "https://data.ontario.ca/dataset/752ce2b7-c15a-4965-a3dc-397bf405e7cc/resource/2a362139-b782-43b1-b3cb-078a2ef19524/download/vaccines_by_age_phu.csv"
+  )
 ```
 
 ```{r vaccination data, include = FALSE}
@@ -237,6 +242,90 @@ ggplot(bar, aes(x = "", y = Percentage, fill = Status)) +
   coord_flip()
 ```
 
+### Vaccination status by Public Health Region
+```{r filter public health unit data to age 12+, echo = FALSE}
+PHU12plus <-
+  PHU %>% filter(Agegroup == "Ontario_12plus") # filter out all the other age ranges so just total for 12+ remains
+```
+
+```{r get most recent reporting date PHU data, echo = FALSE}
+recentPHU <-
+  tail(PHU12plus, n = 35) # Get the most recent day of data for the 34 units, plus "unknown"
+recentPHU <-
+  recentPHU %>% select(
+    Date,
+    PHU.name,
+    At.least.one.dose_cumulative,
+    Second_dose_cumulative,
+    Total.population
+  ) %>% mutate(At.least.one.dose_cumulative = At.least.one.dose_cumulative - Second_dose_cumulative) %>% mutate(None = Total.population - (At.least.one.dose_cumulative + Second_dose_cumulative)) %>% rename(
+    Unit = PHU.name,
+    Partly = At.least.one.dose_cumulative,
+    Fully = Second_dose_cumulative,
+    Population = Total.population
+  )  %>% relocate(Date, Unit, None, Partly, Fully, Population)
+recentPHU_pct <-
+  recentPHU %>% mutate(
+    None_pct = None / Population * 100,
+    Partly_pct = Partly / Population * 100,
+    Fully_pct = Fully / Population * 100
+  ) # Create percentage values for vaccination status in each PHU
+recentPHU_pct$Unit <-
+  str_to_title(recentPHU_pct$Unit, locale = "en") # Convert from uppercase text to sentence
+```
+
+```{r subset full vaccinated percentage status for each PHU, echo = FALSE}
+full_recentPHU_pct <-
+  recentPHU_pct %>% select(Unit, Fully_pct) %>% mutate(Status = "Fully") %>% rename(Percent = Fully_pct)
+```
+
+```{r subset partly vaccinated percentage status for each PHU, echo = FALSE}
+partly_recentPHU_pct <-
+  recentPHU_pct %>% select(Unit, Partly_pct) %>% mutate(Status = "Partly") %>% rename(Percent = Partly_pct)
+```
+
+```{r subset non vaccinated percentage for each PHU, echo = FALSE}
+none_recentPHU_pct <-
+  recentPHU_pct %>% select(Unit, None_pct) %>% mutate(Status = "None") %>% rename(Percent = None_pct)
+```
+
+```{r combine into a data frame for visualisation, echo = FALSE}
+PHU_viz <-
+  rbind(full_recentPHU_pct, partly_recentPHU_pct, none_recentPHU_pct)
+PHU_viz <-
+  PHU_viz %>% filter(Unit != "Unknown") # Remove the "Unknown" category group
+PHU_viz$Status <-
+  factor(PHU_viz$Status, levels = c("None", "Partly", "Fully")) # Reorder by vaccnination status.
+```
+
+```{r stacked bar chart visualisation for Public Health Unit, echo = FALSE}
+ggplot(data = PHU_viz, aes(
+  x = factor(Unit, levels = rev(levels(factor(
+    Unit
+  )))),
+  y = Percent,
+  fill = Status
+)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(limits = c(0, 101)) +
+  labs(
+    y = "%",
+    x = "",
+    caption = "Data: Ontario COVID-19 Vaccine data by Public Health Unit",
+    title = "Vaccination status of population (age 12+)",
+    subtitle = Sys.Date()
+  ) +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_line(colour = "grey", size = 0.25),
+    panel.grid.minor.x = element_blank(),
+    panel.background = element_rect(fill = "#FFFFFF", color = "white"),
+  ) +
+  scale_fill_brewer(palette = "Greys") +
+  coord_flip()
+```
+
 
 ### Progress
 ```{r vaccine percentage population visualisation, echo = FALSE}
@@ -385,181 +474,6 @@ ggplot(data = age, aes(x = Agegroup, y = Total, fill = Status)) +
   coord_flip()
 ```
 
-### Region
-Data are updated on a weekly basis.
-```{r create region download file, include = FALSE}
-# Copy link does not point to a file directly. Need to create a spreadsheet in which to download data.
-file.create("ICES-COVID19-Vaccination-Data-by-FSA.xlsx")
-download.file(
-  "https://www.ices.on.ca/~/media/Files/COVID-19/ICES-COVID19-Vaccination-Data-by-FSA.ashx?la=en-CA",
-  "ICES-COVID19-Vaccination-Data-by-FSA.xlsx"
-)
-```
-
-```{r download region data, echo = FALSE}
-fsa1 <-
-  tibble(
-    read_xlsx(
-      "ICES-COVID19-Vaccination-Data-by-FSA.xlsx",
-      sheet = "At least 1 Dose Vaccine by FSA",
-      skip = 23,
-      col_names = TRUE
-    )
-  )
-fsa2 <-
-  tibble(
-    read_xlsx(
-      "ICES-COVID19-Vaccination-Data-by-FSA.xlsx",
-      sheet = "Both Dose Vaccination by FSA",
-      skip = 23,
-      col_names = TRUE
-    )
-  )
-```
-
-```{r rename columns in region data, echo = FALSE}
-names(fsa1)[names(fsa1) == "% Vaccinated with at least 1 dose\r\n(All ages, including <12 and undocumented age)"] <-
-  "onedose"
-names(fsa2)[names(fsa2) == "% Vaccinated with both doses\r\n(All ages, including <12 and undocumented age)"] <-
-  "bothdose"
-```
-
-```{r keep only colums wanted, echo = FALSE}
-# We only want to keep the FSA region and percentage vaccinated for all ages columns.
-fsa1 <- select(fsa1, FSA, onedose)
-fsa2 <- select(fsa2, FSA, bothdose)
-```
-
-```{r merge data from the two worksheets into one data frame, echo = FALSE}
-# Merge on the FSA value
-fsavaxx <- tibble(merge(fsa1, fsa2, by.x = "FSA"))
-```
-
-```{r create region variable, echo = FALSE}
-# Duplicate the FSA column but keeping only the first letter
-fsavaxx$region <- gsub("([A-Za-z]+).*", "\\1", fsavaxx$FSA)
-
-# Recode that letter into region names. Info on FSAs for Ontario: https://en.wikipedia.org/wiki/Postal_codes_in_Canada#Table_of_all_postal_codes
-fsavaxx$region <- recode_factor(
-  fsavaxx$region,
-  K = "Eastern",
-  L = "Central",
-  M = "Toronto",
-  N = "Western",
-  P = "Northern",
-)
-```
-
-```{r create subsets by region, echo = FALSE}
-# Split the data frame into sub-sets based on their region.
-eastern <- fsavaxx[fsavaxx$region == "Eastern", ]
-central <- fsavaxx[fsavaxx$region == "Central", ]
-toronto <- fsavaxx[fsavaxx$region == "Toronto", ]
-western <- fsavaxx[fsavaxx$region == "Western", ]
-northern <- fsavaxx[fsavaxx$region == "Northern", ]
-```
-
-```{r average percent value for each region, echo = FALSE}
-# Find the mean value for percentages vaccinated with one dose and both doses for each region,
-Eastern <- colMeans(eastern[, c("onedose", "bothdose")])
-Central <- colMeans(central[, c("onedose", "bothdose")])
-Toronto <- colMeans(toronto[, c("onedose", "bothdose")])
-Western <- colMeans(western[, c("onedose", "bothdose")])
-Northern <- colMeans(northern[, c("onedose", "bothdose")])
-```
-
-```{r bind region means into a tibble, echo = FALSE}
-region_mean <-
-  as.data.frame(rbind(Eastern, Central, Toronto, Western, Northern))
-region_mean <-
-  tibble::rownames_to_column(region_mean, "Region") # make sure first row is column names
-```
-
-```{r set up a data frame for visualisation, echo = FALSE}
-# Break into separate data frames depending on one dose or both dose values
-region_viz1 <- tibble(region_mean %>% select(Region, onedose))
-region_viz2 <- tibble(region_mean %>% select(Region, bothdose))
-
-# Standardise the column name for percentage values in those data frames
-region_viz1 <- region_viz1 %>% rename(PartRegion = Region)
-region_viz2 <- region_viz2 %>% rename(FullRegion = Region)
-
-# Multiply values by 100
-region_viz1$onedose <- region_viz1$onedose * 100
-region_viz2$bothdose <- region_viz2$bothdose * 100
-
-# Add a category column for both subsets depending on their states as either a one dose or both dose value.
-region_viz1 <- mutate(region_viz1, PartStatus = "Partly")
-region_viz2 <- mutate(region_viz2, FullStatus = "Fully")
-
-# Bind the two subsets together as columns.
-region_viz <- cbind(region_viz1, region_viz2) # bind
-region_viz <-
-  region_viz %>% mutate(onedose = onedose - bothdose) # Difference between full and part vaccinated
-region_viz <- region_viz %>% mutate(
-  NoRegion = FullRegion,
-  nodose = 100 - (onedose + bothdose),
-  NoStatus = "None"
-) # Calculate percentage not vaccinated.
-
-# Write back to indivisual tables.
-region_viz1 <- select(region_viz, PartRegion, onedose, PartStatus)
-region_viz2 <- select(region_viz, FullRegion, bothdose, FullStatus)
-region_viz3 <- select(region_viz, NoRegion, nodose, NoStatus)
-
-# Rename columns for consistency
-region_viz1 <-
-  rename(region_viz1,
-         Region = PartRegion,
-         Percent = onedose,
-         Status = PartStatus)
-region_viz2 <-
-  rename(region_viz2,
-         Region = FullRegion,
-         Percent = bothdose,
-         Status = FullStatus)
-region_viz3 <-
-  rename(region_viz3,
-         Region =  NoRegion,
-         Percent = nodose,
-         Status = NoStatus)
-
-# Bind together Full, Part, and No vaccination subsets.
-region_viz <- tibble(rbind(region_viz1, region_viz2, region_viz3))
-
-# Rounds percent value to one digit.
-region_viz$Percent <- round(region_viz$Percent, digits = 0)
-
-# Order them for visualisation on one dose vale first in the bar chart.
-region_viz$Status <-
-  factor(region_viz$Status, levels = c("None", "Partly", "Fully"))
-```
-
-```{r stacked bar chart visualisation for region, echo = FALSE}
-ggplot(data = region_viz, aes(x = Region, y = Percent, fill = Status)) +
-  geom_bar(stat = "identity") +
-  geom_text(aes(label = paste0(Percent, sep = "%")),
-            position = position_stack(vjust = .5),
-            size = 2.5) +
-  scale_y_continuous(limits = c(0, 100)) +
-  labs(
-    y = "%",
-    x = "",
-    caption = "Data: ICES COVID-19 Dashboard vaccine coverage estimates for selected age groups by Forward Sortation Areas (FSAs).",
-    title = "Estimated Ontario COVID-19 vaccination status of population (aged 12+)\npercentage by FSA region",
-    subtitle = Sys.Date()
-  ) +
-  theme(
-    panel.grid.major.y = element_blank(),
-    panel.grid.minor.y = element_blank(),
-    panel.grid.major.x = element_line(colour = "grey", size = 0.25),
-    panel.grid.minor.x = element_blank(),
-    panel.background = element_rect(fill = "#FFFFFF", color = "white"),
-  ) +
-  scale_fill_brewer(palette = "Greys") +
-  coord_flip()
-```
-
 
 ## Citations
 ### Data
@@ -567,8 +481,8 @@ Ontario COVID-19 Vaccine Data https://data.ontario.ca/dataset/covid-19-vaccine-d
 
 Ontario COVID-19 Vaccine Data by Age https://data.ontario.ca/dataset/covid-19-vaccine-data-in-ontario/resource/775ca815-5028-4e9b-9dd4-6975ff1be021 published under Open Government Licence – Ontario version 1.0 (https://www.ontario.ca/page/open-government-licence-ontario)
 
-ICES COVID-19 Dashboard vaccine coverage estimates for selected age groups by Forward Sortation Areas (FSAs)
-https://www.ices.on.ca/~/media/Files/COVID-19/ICES-COVID19-Vaccination-Data-by-FSA.ashx?la=en-CA available at https://www.ices.on.ca/DAS/AHRQ/COVID-19-Dashboard
+Ontario COVID-19 Vaccine Data by Public Health Unit
+https://data.ontario.ca/dataset/covid-19-vaccine-data-in-ontario/resource/2a362139-b782-43b1-b3cb-078a2ef19524 published under Open Government Licence – Ontario version 1.0 (https://www.ontario.ca/page/open-government-licence-ontario)
 
 ### Code
 Horton, L. (2021). Ontario COVID-19 Vaccinations. *GitHub repository*, https://github.com/laurencehorton/ontario-covid-vaccinations published under Creative Commons Zero v1.0 Universal https://github.com/laurencehorton/ontario-covid-vaccinations/blob/main/LICENSE 
@@ -581,3 +495,4 @@ toBibtex(citation("rjson"))
 toBibtex(citation("tidyverse"))
 toBibtex(citation("rmarkdown"))
 toBibtex(citation("readxl"))
+toBibtex(citation("stringr"))
