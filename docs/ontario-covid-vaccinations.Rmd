@@ -1,6 +1,9 @@
 ---
 title: Progress
 output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 ```{r setup, include = FALSE}
@@ -14,7 +17,11 @@ library(rjson) # for reading api
 library(tidyverse) # for visualisations
 library(lubridate) # for converting character strings to dates
 library(readxl) # for reading Excel spreadsheets into R
-library(stringr) # For converting text to title case
+library(stringr) # for converting text to title case
+```
+
+```{r supress scientific notation, include = FALSE}
+options(scipen=999)
 ```
 
 ```{r data sources, include = FALSE}
@@ -184,9 +191,10 @@ names(vizfull)[names(vizfull) == "percentagefully"] <- "percentage"
 names(vizpart)[names(vizpart) == "percentagepart"] <- "percentage"
 ```
 
-
 ### Vaccinated
+
 Vaccination status as a percentage of the population
+
 ```{r create subset of vaccination status as percentage of adult population, include = FALSE}
 bar <- tail(vaxx, n = 1)
 bar <-
@@ -243,6 +251,7 @@ ggplot(bar, aes(x = "", y = Percentage, fill = Status)) +
 ```
 
 ### Vaccination status by Public Health Region
+
 ```{r filter public health unit data to age 12+, echo = FALSE}
 PHU12plus <-
   PHU %>% filter(Agegroup == "Ontario_12plus") # filter out all the other age ranges so just total for 12+ remains
@@ -295,7 +304,7 @@ PHU_viz <-
 PHU_viz <-
   PHU_viz %>% filter(Unit != "Unknown") # Remove the "Unknown" category group
 PHU_viz$Status <-
-  factor(PHU_viz$Status, levels = c("None", "Partly", "Fully")) # Reorder by vaccnination status.
+  factor(PHU_viz$Status, levels = c("None", "Partly", "Fully")) # Reorder by vaccination status.
 ```
 
 ```{r stacked bar chart visualisation for Public Health Unit, echo = FALSE}
@@ -326,8 +335,8 @@ ggplot(data = PHU_viz, aes(
   coord_flip()
 ```
 
-
 ### Progress
+
 ```{r vaccine percentage population visualisation, echo = FALSE}
 ggplot(vizfull, aes(report_date, percentage)) +
   geom_line(aes(linetype = "Fully")) +
@@ -344,8 +353,8 @@ ggplot(vizfull, aes(report_date, percentage)) +
   theme(legend.position = "right", panel.grid.minor = element_blank())
 ```
 
-
 ### Vaccine doses
+
 ```{r latest number of vaccine doses, results = 'asis', echo = FALSE}
 latestdoses <-
   subset(
@@ -363,9 +372,9 @@ colnames(latestdoses) <-
 latestdoses <- tail(latestdoses, n = 1)
 knitr::kable(latestdoses, row.names = FALSE, align = "c")
 ```
-  
-  
-### Daily and cumulative vaccine doses  
+
+### Daily and cumulative vaccine doses
+
 ```{r daily and cumilative totals of vaccine administered, echo = FALSE}
 # Subset data
 dosesadministered <-
@@ -415,6 +424,7 @@ ggplot() +
 ```
 
 ### Age group
+
 ```{r latest age group data, echo = FALSE}
 agerecent <-
   select(
@@ -474,15 +484,199 @@ ggplot(data = age, aes(x = Agegroup, y = Total, fill = Status)) +
   coord_flip()
 ```
 
+## Prevalence
+
+```{r Get data on breakthrough cases, echo = FALSE}
+breakthrough <-
+  read.csv(
+    "https://data.ontario.ca/dataset/752ce2b7-c15a-4965-a3dc-397bf405e7cc/resource/eed63cf2-83dd-4598-b337-b288c0a89a16/download/vac_status.csv"
+  )
+breakthrough[is.na(breakthrough)] <-0 # replace NA's with zero to allow a merge.
+breakthrough <- rename(breakthrough, date = Date)
+```
+
+```{r, get total population estimate for ON including under age 12s, echo = FALSE}
+ONpop_est_Q2_2021 <- ("https://www150.statcan.gc.ca/t1/tbl1/en/dtl!downloadDbLoadingData-nonTraduit.action?pid=1710000901&latestN=0&startDate=20210401&endDate=20210701&csvLocale=en&selectedMembers=%5B%5B1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9%2C10%2C11%2C12%2C14%2C15%5D%5D") # read in StatsCan quarterly population estimate. Check the change every quarter
+ONpop_est <- ONpop_est_Q2_2021
+ONpop_est <- read.csv(ONpop_est) # read in CSV
+ONpop_est <- ONpop_est %>% filter(GEO == "Ontario") # filter for province
+ONpop_est <- ONpop_est$VALUE # get character value for population estimate from VALUE column,
+```
+
+```{r merge vaccination data with breakthrough cases, echo = FALSE}
+vaxx <- rename(vaxx, date = report_date)
+vaxx$date <- as.factor(vaxx$date)
+breakthrough <-
+  merge(breakthrough, vaxx, by = "date") %>% select(date:covid19_cases_vac_unknown,
+                                                    total_individuals_fully_vaccinated,
+                                                    part,
+                                                    none) %>% rename(full_vac = total_individuals_fully_vaccinated,
+                                                                     partial_vac = part,
+                                                                     unvac = none)
+breakthrough$covid19_cases_vac_unknown[breakthrough$covid19_cases_vac_unknown == 0] <- NA # Turn the zeros we added back to NAs.
+```
+
+### Prevalence rates per 100,000
+
+```{r formula for calculating prevalance rates per thousand, echo = FALSE}
+# formula
+# population / 100000 = quotient
+# no. of occurrences / quotient * 100000
+```
+
+```{r population quotents, echo = FALSE}
+pop <- slice_tail(breakthrough)
+unvac_adult_pop <- pop %>% select(unvac) %>% pull(unvac)
+partial_vac_pop <- pop %>% select(partial_vac) %>% pull(partial_vac)
+full_vac_pop <- pop %>% select(full_vac) %>% pull(full_vac)
+
+# Estimate total unvacinated population for province including ineligible (children under 12)
+unvac_pop <- ONpop_est - ONpop12plus + unvac_adult_pop
+```
+
+```{r prevenlence non-hospital cases, echo = FALSE}
+non_hospital <-
+  breakthrough %>% select(date:covid19_cases_vac_unknown)
+non_hospital_prev <-
+  non_hospital %>% mutate(
+    covid19_cases_unvac_prev = covid19_cases_unvac / unvac_pop * 100000,
+    covid19_cases_partial_vac_prev = covid19_cases_partial_vac / partial_vac_pop * 100000,
+    covid19_cases_full_vac_prev = covid19_cases_full_vac / full_vac_pop * 100000
+  ) %>% select(date, covid19_cases_unvac_prev:covid19_cases_full_vac_prev) #%>% mutate(across(where( ~ is.numeric(.)), ~ round(., 0)))
+```
+
+```{r visualisation non-hospital cases, include = FALSE}
+ggplot(non_hospital_prev, aes(x = date, group = 1)) + 
+  geom_line(aes(y = covid19_cases_full_vac_prev, linetype = "Fully")) + 
+  geom_line(aes(y = covid19_cases_partial_vac_prev, linetype = "Partly")) + 
+  geom_line(aes(y = covid19_cases_unvac_prev, linetype = "None")) + 
+  scale_linetype_discrete(name="Vaccination\nstatus",
+  breaks=c("Fully", "Partly", "None")) +
+  labs(title="Prevelence of COVID19 cases by known vaccination status",
+       subtitle = "Province of Ontario",
+       caption="Source: Ontario COVID-19 Vaccine Data",
+       x = "Reporting date",
+       y = "Cases per 100,000 of population") +
+  theme(axis.text.x = element_text(angle=45, hjust = 1), legend.position = "right", panel.grid.minor = element_blank())
+```
+
+```{r get data on hospitalisation of breakthrough cases, echo = FALSE}
+hospital <- read.csv("https://data.ontario.ca/dataset/752ce2b7-c15a-4965-a3dc-397bf405e7cc/resource/274b819c-5d69-4539-a4db-f2950794138c/download/vac_status_hosp_icu.csv")
+```
+
+```{r prevenlence hospital cases non icu, echo = FALSE}
+hospital_no_ICU <-
+  hospital %>% select(date,
+                          hospitalnonicu_unvac:hospitalnonicu_full_vac)
+hospital_prev <-
+  hospital_no_ICU %>% mutate(
+    hospital_unvac_prev = hospitalnonicu_unvac / unvac_pop * 100000,
+    hospital_partial_vac_prev = hospitalnonicu_partial_vac / partial_vac_pop * 100000,
+    hospital_full_vac_prev = hospitalnonicu_full_vac / full_vac_pop * 100000
+  ) %>% select(date, hospital_unvac_prev:hospital_full_vac_prev) #%>% mutate(across(where( ~ is.numeric(.)), ~ round(., 0)))
+```
+
+```{r visualisation hospital cases non icu, include = FALSE}
+ggplot(hospital_prev, aes(x = date, group = 1)) + 
+  geom_line(aes(y = hospital_unvac_prev, linetype = "None")) + 
+  geom_line(aes(y = hospital_partial_vac_prev, linetype = "Partly")) + 
+  geom_line(aes(y = hospital_full_vac_prev, linetype = "Fully")) + 
+   scale_linetype_discrete(name="Vaccination\nstatus",
+  breaks=c("Fully", "Partly", "None")) +
+  labs(title="Prevelence of hospitalised COVID19 cases",
+       subtitle = "Province of Ontario",
+       caption="Source: Ontario COVID-19 Vaccine Data",
+       x = "Reporting date",
+       y = "Cases per 100,000 of population aged 12+") +
+  theme(axis.text.x = element_text(angle=45, hjust = 1), legend.position = "right", panel.grid.minor = element_blank())
+```
+
+```{r icu prevenlence rates per thousand, echo = FALSE}
+icu <-
+  hospital %>% select(date:icu_full_vac)
+icu_prev <-
+  icu %>% mutate(
+    icu_unvac_prev = icu_unvac / unvac_pop * 100000,
+    icu_partial_vac_prev = icu_partial_vac / partial_vac_pop * 100000,
+    icu_full_vac_prev = icu_full_vac / full_vac_pop * 100000
+  ) %>% select(date, icu_unvac_prev:icu_full_vac_prev) #%>% mutate(across(where(~ is.numeric(.)), ~ round(., 0)))
+```
+
+```{r visualisation of icu prevenlence rates per thousand, include = FALSE}
+ggplot(icu_prev, aes(x = date, group = 1)) + 
+  geom_line(aes(y = icu_unvac_prev, linetype = "None")) + 
+  geom_line(aes(y = icu_partial_vac_prev, linetype = "Partly")) + 
+  geom_line(aes(y = icu_full_vac_prev, linetype = "Fully")) + 
+ scale_linetype_discrete(name="Vaccination\nstatus",
+  breaks=c("Fully", "Partly", "None")) +
+  labs(title="Prevelence of ICU COVID19 cases",
+       subtitle = "Province of Ontario",
+       caption="Source: Ontario COVID-19 Vaccine Data",
+       x = "Reporting date",
+       y = "Cases per 100,000 of population aged 12+") +
+  theme(axis.text.x = element_text(angle=45, hjust = 1), legend.position = "right", panel.grid.minor = element_blank())
+```
+
+```{r merge non-hospitalised and hospitalised cases together, echo = FALSE}
+breakthrough_prev_viz <- merge(hospital_prev, icu_prev, by = "date")
+breakthrough_prev_viz <- merge(non_hospital_prev, breakthrough_prev_viz, by = "date", all.y= TRUE)
+```
+
+```{r visualisation for all breakthrough cases, echo = FALSE}
+ggplot(data = breakthrough_prev_viz, aes(x = date, group = 1)) +
+  geom_line(aes(y = covid19_cases_full_vac_prev, linetype = "Fully, no hospital")) + 
+  geom_line(aes(y = covid19_cases_partial_vac_prev, linetype = "Partly, no hsopital")) + 
+  geom_line(aes(y = covid19_cases_unvac_prev, linetype = "None, no hospital")) + 
+  geom_line(aes(y = hospital_full_vac_prev, linetype = "Fully, hospital")) + 
+  geom_line(aes(y = hospital_partial_vac_prev, linetype = "Partly, hospital")) + 
+  geom_line(aes(y = hospital_unvac_prev, linetype = "None, hospital")) +
+  geom_line(aes(y = icu_full_vac_prev, linetype = "Fully, ICU")) + 
+  geom_line(aes(y = icu_partial_vac_prev, linetype = "Partly, ICU")) + 
+  geom_line(aes(y = icu_unvac_prev, linetype = "None, ICU")) + 
+    scale_linetype_discrete(name = "Vaccination\nstatus", breaks=c("Fully, no hospital", "Partly, no hsopital", "None, no hospital", "Fully, hospital", "Partly, hospital", "None, hospital", "Fully, ICU", "Partly, ICU", "None, ICU" )) +
+  labs(
+    title = "Prevelence of COVID19 cases",
+    subtitle = "Province of Ontario",
+    caption = "Source: Ontario COVID-19 Vaccine Data",
+    x = "Reporting date",
+    y = "Cases per 100,000 of population"
+  ) +
+  theme(axis.text.x = element_text(angle=45, hjust = 1), legend.position = "right", panel.grid.minor = element_blank())
+```
 
 ## Citations
-### Data
-Ontario COVID-19 Vaccine Data https://data.ontario.ca/dataset/covid-19-vaccine-data-in-ontario/resource/8a89caa9-511c-4568-af89-7f2174b4378c?view_id=9e42f55b-723f-46dd-b0d9-643670e01fed published under Open Government Licence – Ontario version 1.0 (https://www.ontario.ca/page/open-government-licence-ontario)
 
-Ontario COVID-19 Vaccine Data by Age https://data.ontario.ca/dataset/covid-19-vaccine-data-in-ontario/resource/775ca815-5028-4e9b-9dd4-6975ff1be021 published under Open Government Licence – Ontario version 1.0 (https://www.ontario.ca/page/open-government-licence-ontario)
+### Data
+
+Ontario COVID-19 Vaccine Data
+<https://data.ontario.ca/dataset/covid-19-vaccine-data-in-ontario/resource/8a89caa9-511c-4568-af89-7f2174b4378c?view_id=9e42f55b-723f-46dd-b0d9-643670e01fed>
+published under Open Government Licence -- Ontario version 1.0
+(<https://www.ontario.ca/page/open-government-licence-ontario>)
+
+Ontario COVID-19 Vaccine Data by Age
+<https://data.ontario.ca/dataset/covid-19-vaccine-data-in-ontario/resource/775ca815-5028-4e9b-9dd4-6975ff1be021>
+published under Open Government Licence -- Ontario version 1.0
+(<https://www.ontario.ca/page/open-government-licence-ontario>)
 
 Ontario COVID-19 Vaccine Data by Public Health Unit
-https://data.ontario.ca/dataset/covid-19-vaccine-data-in-ontario/resource/2a362139-b782-43b1-b3cb-078a2ef19524 published under Open Government Licence – Ontario version 1.0 (https://www.ontario.ca/page/open-government-licence-ontario)
+<https://data.ontario.ca/dataset/covid-19-vaccine-data-in-ontario/resource/2a362139-b782-43b1-b3cb-078a2ef19524>
+published under Open Government Licence -- Ontario version 1.0
+(<https://www.ontario.ca/page/open-government-licence-ontario>)
+
+Ontario COVID-19 Vaccine Data by Cases by Vaccination Status
+<https://data.ontario.ca/dataset/covid-19-vaccine-data-in-ontario/resource/eed63cf2-83dd-4598-b337-b288c0a89a16>
+published under Open Government Licence -- Ontario version 1.0
+(<https://www.ontario.ca/page/open-government-licence-ontario>)
+
+Ontario COVID-19 Vaccine Data by Hospitalizations by Vaccination Status
+<https://data.ontario.ca/dataset/covid-19-vaccine-data-in-ontario/resource/274b819c-5d69-4539-a4db-f2950794138c>
+published under Open Government Licence -- Ontario version 1.0
+(<https://www.ontario.ca/page/open-government-licence-ontario>)
+
+Statistics Canada. Table 17-10-0009-01 Population estimates, quarterly
+DOI: <https://doi.org/10.25318/1710000901-eng> published under
+Statistics Canada Open Licence
+(<https://www.statcan.gc.ca/eng/reference/licence>)
 
 ```{r citations, include = FALSE}
 toBibtex(citation("base"))
@@ -493,3 +687,4 @@ toBibtex(citation("tidyverse"))
 toBibtex(citation("rmarkdown"))
 toBibtex(citation("readxl"))
 toBibtex(citation("stringr"))
+```
