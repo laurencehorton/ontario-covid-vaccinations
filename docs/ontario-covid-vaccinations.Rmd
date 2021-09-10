@@ -493,6 +493,7 @@ breakthrough <-
   )
 breakthrough[is.na(breakthrough)] <-0 # replace NA's with zero to allow a merge.
 breakthrough <- rename(breakthrough, date = Date)
+breakthrough$date <- gsub("/", "-", breakthrough$date)
 ```
 
 ```{r, get total population estimate for ON including under age 12s, echo = FALSE}

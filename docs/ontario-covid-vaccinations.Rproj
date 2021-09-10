@@ -14,3 +14,5 @@ LaTeX: pdfLaTeX
 
 BuildType: Website
 WebsitePath: ~/Github/ontario-covid-vaccinations/docs
+
+SpellingDictionary: en_CA
