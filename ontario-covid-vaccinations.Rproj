@@ -13,6 +13,6 @@ RnwWeave: Sweave
 LaTeX: pdfLaTeX
 
 BuildType: Website
-WebsitePath: ~/Github/ontario-covid-vaccinations/docs
+WebsitePath: ~/Github/ontario-covid-vaccinations
 
 SpellingDictionary: en_CA
