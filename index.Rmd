@@ -16,7 +16,7 @@ Horton, L. (2021). Ontario COVID-19 vaccination tracking (v7.0). *Zenodo*. https
 ### R packages  
 Allaire, J.J. et. al. (2021). *rmarkdown: Dynamic Documents for R. R package version 2.7*. https://rmarkdown.rstudio.com  
 
-Couture-Bell, A. (2018). rjson: JSON for R, *R package version 0.2.20*. https://CRAN.R-project.org/package=rjson
+Couture-Bell, A. (2018). *rjson: JSON for R*. R package version 0.2.20*. https://CRAN.R-project.org/package=rjson
 
 Grolemund, G., Wickham, H. (2011). Dates and times made easy with {lubridate}, *Journal of Statistical Software, 40*(3), 1-25. https://www.jstatsoft.org/v40/i03/  
 
@@ -24,8 +24,10 @@ R Core Team. (2018). *R: A Language and Environment for Statistical Computing. R
 
 Wickham, H. et. al. (2019). Welcome to the {tidyverse}, *Journal of Open Source Software, 4*(43), 1686. https://doi.org/10.21105/joss.01686
 
+Wickham, H. (2019). *stringr: Simple, Consistent Wrappers for Common String Operations.* R package version 1.4.0. https://CRAN.R-project.org/package=stringr
+
 Wickham, H., Bryan, J. (2019). *readxl: Read Excel Files. R package version 1.3.1.* https://CRAN.R-project.org/package=readxl
 
-Wickham, H. (2019). stringr: Simple, Consistent Wrappers for Common String Operations. *R package version 1.4.0*. https://CRAN.R-project.org/package=stringr
+Wickham, H., Dana S. (2020). *scales: Scale Functions for Visualization.* R package version 1.1.1. https://CRAN.R-project.org/package=scales 
 
 Xie, Y. (2021). knitr: A General-Purpose Package for Dynamic Report Generation in R, *R package version 1.31*, https://yihui.org/knitr/

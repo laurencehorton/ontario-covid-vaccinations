@@ -15,6 +15,7 @@ library(tidyverse) # for visualisations
 library(lubridate) # for converting character strings to dates
 library(readxl) # for reading Excel spreadsheets into R
 library(stringr) # for converting text to title case
+library(scales) # formating dates on x axis
 ```
 
 ```{r supress scientific notation, include = FALSE}
@@ -494,11 +495,11 @@ breakthrough <- rename(breakthrough, report_date = Date)
 ```
 
 ```{r, get total population estimate for ON including under age 12s, echo = FALSE}
-ONpop_est_Q2_2021 <- ("https://www150.statcan.gc.ca/t1/tbl1/en/dtl!downloadDbLoadingData-nonTraduit.action?pid=1710000901&latestN=0&startDate=20210401&endDate=20210701&csvLocale=en&selectedMembers=%5B%5B1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9%2C10%2C11%2C12%2C14%2C15%5D%5D") # read in StatsCan quarterly population estimate. Check the change every quarter
-ONpop_est <- ONpop_est_Q2_2021
+ONpop_est_Q3_2021 <- ("https://www150.statcan.gc.ca/t1/tbl1/en/dtl!downloadDbLoadingData-nonTraduit.action?pid=1710000901&latestN=0&startDate=20210401&endDate=20210701&csvLocale=en&selectedMembers=%5B%5B1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9%2C10%2C11%2C12%2C14%2C15%5D%5D") # read in StatsCan quarterly population estimate. Check the change every quarter
+ONpop_est <- ONpop_est_Q3_2021
 ONpop_est <- read.csv(ONpop_est) # read in CSV
 ONpop_est <- ONpop_est %>% filter(GEO == "Ontario") # filter for province
-ONpop_est <- ONpop_est$VALUE # get character value for population estimate from VALUE column,
+ONpop_est <- tail(ONpop_est$VALUE, n = 1) # get character value for population estimate from VALUE column,
 ```
 
 ```{r merge vaccination data with breakthrough cases, echo = FALSE}
@@ -528,7 +529,7 @@ partial_vac_pop <- pop %>% select(partial_vac) %>% pull(partial_vac)
 full_vac_pop <- pop %>% select(full_vac) %>% pull(full_vac)
 
 # Estimate total unvacinated population for province including ineligible (children under 12)
-unvac_pop <- ONpop_est - ONpop12plus + unvac_adult_pop
+unvac_pop <- ONpop_est - (ONpop12plus + unvac_adult_pop)
 ```
 
 ```{r prevenlence non-hospital cases, echo = FALSE}
@@ -618,6 +619,7 @@ ggplot(icu_prev, aes(x = report_date, group = 1)) +
 ```{r merge non-hospitalised and hospitalised cases together, echo = FALSE}
 breakthrough_prev_viz <- merge(hospital_prev, icu_prev, by = "report_date")
 breakthrough_prev_viz <- merge(non_hospital_prev, breakthrough_prev_viz, by = "report_date", all.y= TRUE)
+breakthrough_prev_viz$report_date <- as.Date(breakthrough_prev_viz$report_date)
 ```
 
 ```{r visualisation for all breakthrough cases, echo = FALSE}
@@ -639,6 +641,7 @@ ggplot(data = breakthrough_prev_viz, aes(x = report_date, group = 1)) +
     x = "Reporting date",
     y = "Cases per 100,000 of population"
   ) +
+  scale_x_date(labels = date_format("%m/%d")) +
   theme(axis.text.x = element_text(angle=45, hjust = 1), legend.position = "right", panel.grid.major = element_blank())
 ```
 
@@ -667,4 +670,5 @@ toBibtex(citation("tidyverse"))
 toBibtex(citation("rmarkdown"))
 toBibtex(citation("readxl"))
 toBibtex(citation("stringr"))
+toBibtex(citation("scales"))
 ```
