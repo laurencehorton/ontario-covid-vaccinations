@@ -13,7 +13,6 @@ library(knitr) # formatting tables in markdown
 library(rjson) # for reading api
 library(tidyverse) # for visualisations
 library(lubridate) # for converting character strings to dates
-library(readxl) # for reading Excel spreadsheets into R
 library(stringr) # for converting text to title case
 library(scales) # formating dates on x axis
 library(zoo) # for rolling averages
@@ -696,7 +695,6 @@ toBibtex(citation("lubridate"))
 toBibtex(citation("rjson"))
 toBibtex(citation("tidyverse"))
 toBibtex(citation("rmarkdown"))
-toBibtex(citation("readxl"))
 toBibtex(citation("stringr"))
 toBibtex(citation("scales"))
 toBibtex(citation("zoo"))
