@@ -16,6 +16,7 @@ library(lubridate) # for converting character strings to dates
 library(readxl) # for reading Excel spreadsheets into R
 library(stringr) # for converting text to title case
 library(scales) # formating dates on x axis
+library(zoo) # for rolling averages
 ```
 
 ```{r supress scientific notation, include = FALSE}
@@ -407,15 +408,15 @@ ggplot() +
   geom_line(
     mapping = aes(x = dosesadministered$administered, y = dosesadministered$totaldoses *
                     .01),
-    size = 1,
-    color = "blue",
+    size = 0.5,
+    color = "black",
   ) +
   scale_x_date(name = "") +
   scale_y_continuous(name = "Daily doses",
                      sec.axis = sec_axis(~ . / 10000, name = "Cumilative (million)")) +
   theme(
     axis.title.y = element_text(color = "black"),
-    axis.title.y.right = element_text(color = "blue"),
+    axis.title.y.right = element_text(color = "black"),
     legend.position = "bottom",
     panel.grid.minor = element_blank()
   )
@@ -540,7 +541,16 @@ non_hospital_prev <-
     covid19_cases_unvac_prev = covid19_cases_unvac / unvac_pop * 100000,
     covid19_cases_partial_vac_prev = covid19_cases_partial_vac / partial_vac_pop * 100000,
     covid19_cases_full_vac_prev = covid19_cases_full_vac / full_vac_pop * 100000
-  ) %>% select(report_date, covid19_cases_unvac_prev:covid19_cases_full_vac_prev) #%>% mutate(across(where( ~ is.numeric(.)), ~ round(., 0)))
+  )
+
+# Create seven day averages.
+non_hospital_prev <- 
+  non_hospital_prev %>% mutate(
+    covid19_cases_unvac_prev_7day = rollmean(covid19_cases_unvac_prev, k = 7, fill = NA),
+    covid19_cases_partial_vac_prev_7day = rollmean(covid19_cases_partial_vac, k = 7, fill = NA),
+    covid19cases_full_vac_prev_7day = rollmean(covid19_cases_full_vac, k = 7, fill = NA)
+  )
+non_hospital_prev <- non_hospital_prev %>% select(report_date, covid19_cases_unvac_prev:covid19cases_full_vac_prev_7day)
 ```
 
 ```{r visualisation non-hospital cases, include = FALSE}
@@ -572,7 +582,16 @@ hospital_prev <-
     hospital_unvac_prev = hospitalnonicu_unvac / unvac_pop * 100000,
     hospital_partial_vac_prev = hospitalnonicu_partial_vac / partial_vac_pop * 100000,
     hospital_full_vac_prev = hospitalnonicu_full_vac / full_vac_pop * 100000
-  ) %>% select(report_date, hospital_unvac_prev:hospital_full_vac_prev) #%>% mutate(across(where( ~ is.numeric(.)), ~ round(., 0)))
+  )
+
+# Create seven day averages.
+hospital_prev <- 
+  hospital_prev %>% mutate(
+    hospital_unvac_prev_7day = rollmean(hospital_unvac_prev, k = 7, fill = NA),
+    hospital_partial_vac_prev_7day = rollmean(hospital_partial_vac_prev, k = 7, fill = NA),
+    hospital_full_vac_prev_7day = rollmean(hospital_full_vac_prev, k = 7, fill = NA)
+  )
+hospital_prev <- hospital_prev %>% select(report_date, hospital_unvac_prev:hospital_full_vac_prev_7day)
 ```
 
 ```{r visualisation hospital cases non icu, include = FALSE}
@@ -598,7 +617,16 @@ icu_prev <-
     icu_unvac_prev = icu_unvac / unvac_pop * 100000,
     icu_partial_vac_prev = icu_partial_vac / partial_vac_pop * 100000,
     icu_full_vac_prev = icu_full_vac / full_vac_pop * 100000
-  ) %>% select(report_date, icu_unvac_prev:icu_full_vac_prev) #%>% mutate(across(where(~ is.numeric(.)), ~ round(., 0)))
+  ) %>% select(report_date, icu_unvac_prev:icu_full_vac_prev)
+
+# Create seven day averages.
+icu_prev <- 
+  icu_prev %>% mutate(
+    icu_unvac_prev_7day = rollmean(icu_unvac_prev, k = 7, fill = NA),
+    icu_partial_vac_prev_7day = rollmean(icu_partial_vac_prev, k = 7, fill = NA),
+    icu_full_vac_prev_7day = rollmean(icu_full_vac_prev, k = 7, fill = NA)
+  )
+icu_prev <- icu_prev %>% select(report_date, icu_unvac_prev:icu_full_vac_prev_7day)
 ```
 
 ```{r visualisation of icu prevenlence rates per thousand, include = FALSE}
@@ -623,20 +651,20 @@ breakthrough_prev_viz$report_date <- as.Date(breakthrough_prev_viz$report_date)
 ```
 
 ```{r visualisation for all breakthrough cases, echo = FALSE}
-ggplot(data = breakthrough_prev_viz, aes(x = report_date, group = 1)) +
-  geom_line(aes(y = covid19_cases_full_vac_prev, linetype = "Fully, no hospital")) + 
-  geom_line(aes(y = covid19_cases_partial_vac_prev, linetype = "Partly, no hsopital")) + 
-  geom_line(aes(y = covid19_cases_unvac_prev, linetype = "None, no hospital")) + 
-  geom_line(aes(y = hospital_full_vac_prev, linetype = "Fully, hospital")) + 
-  geom_line(aes(y = hospital_partial_vac_prev, linetype = "Partly, hospital")) + 
-  geom_line(aes(y = hospital_unvac_prev, linetype = "None, hospital")) +
-  geom_line(aes(y = icu_full_vac_prev, linetype = "Fully, ICU")) + 
-  geom_line(aes(y = icu_partial_vac_prev, linetype = "Partly, ICU")) + 
-  geom_line(aes(y = icu_unvac_prev, linetype = "None, ICU")) + 
+ggplot(data = drop_na(breakthrough_prev_viz), aes(x = report_date, group = 1)) +
+  geom_line(aes(y = covid19cases_full_vac_prev_7day, linetype = "Fully, no hospital")) + 
+  geom_line(aes(y = covid19_cases_partial_vac_prev_7day, linetype = "Partly, no hsopital")) + 
+  geom_line(aes(y = covid19_cases_unvac_prev_7day, linetype = "None, no hospital")) + 
+  geom_line(aes(y = hospital_full_vac_prev_7day, linetype = "Fully, hospital")) + 
+  geom_line(aes(y = hospital_partial_vac_prev_7day, linetype = "Partly, hospital")) + 
+  geom_line(aes(y = hospital_unvac_prev_7day, linetype = "None, hospital")) +
+  geom_line(aes(y = icu_full_vac_prev_7day, linetype = "Fully, ICU")) + 
+  geom_line(aes(y = icu_partial_vac_prev_7day, linetype = "Partly, ICU")) + 
+  geom_line(aes(y = icu_unvac_prev_7day, linetype = "None, ICU")) + 
     scale_linetype_discrete(name = "Vaccination\nstatus", breaks=c("Fully, no hospital", "Partly, no hsopital", "None, no hospital", "Fully, hospital", "Partly, hospital", "None, hospital", "Fully, ICU", "Partly, ICU", "None, ICU" )) +
   labs(
     title = "Prevelence of COVID19 cases",
-    subtitle = "Province of Ontario",
+    subtitle = "Province of Ontario, 7 day rolling average",
     caption = "Source: Ontario COVID-19 Vaccine Data",
     x = "Reporting date",
     y = "Cases per 100,000 of population"
@@ -671,4 +699,5 @@ toBibtex(citation("rmarkdown"))
 toBibtex(citation("readxl"))
 toBibtex(citation("stringr"))
 toBibtex(citation("scales"))
+toBibtex(citation("zoo"))
 ```
