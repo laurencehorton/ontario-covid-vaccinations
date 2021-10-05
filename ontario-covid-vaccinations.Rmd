@@ -14,7 +14,7 @@ library(rjson) # for reading api
 library(tidyverse) # for visualisations
 library(lubridate) # for converting character strings to dates
 library(stringr) # for converting text to title case
-library(scales) # formating dates on x axis
+library(scales) # formatting dates on x axis
 library(zoo) # for rolling averages
 ```
 
