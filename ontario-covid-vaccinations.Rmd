@@ -651,16 +651,18 @@ breakthrough_prev_viz$report_date <- as.Date(breakthrough_prev_viz$report_date)
 
 ```{r visualisation for all breakthrough cases, echo = FALSE}
 ggplot(data = drop_na(breakthrough_prev_viz), aes(x = report_date, group = 1)) +
-  geom_line(aes(y = covid19cases_full_vac_prev_7day, linetype = "Fully, no hospital")) + 
-  geom_line(aes(y = covid19_cases_partial_vac_prev_7day, linetype = "Partly, no hsopital")) + 
-  geom_line(aes(y = covid19_cases_unvac_prev_7day, linetype = "None, no hospital")) + 
-  geom_line(aes(y = hospital_full_vac_prev_7day, linetype = "Fully, hospital")) + 
-  geom_line(aes(y = hospital_partial_vac_prev_7day, linetype = "Partly, hospital")) + 
-  geom_line(aes(y = hospital_unvac_prev_7day, linetype = "None, hospital")) +
-  geom_line(aes(y = icu_full_vac_prev_7day, linetype = "Fully, ICU")) + 
-  geom_line(aes(y = icu_partial_vac_prev_7day, linetype = "Partly, ICU")) + 
-  geom_line(aes(y = icu_unvac_prev_7day, linetype = "None, ICU")) + 
-    scale_linetype_discrete(name = "Vaccination\nstatus", breaks=c("Fully, no hospital", "Partly, no hsopital", "None, no hospital", "Fully, hospital", "Partly, hospital", "None, hospital", "Fully, ICU", "Partly, ICU", "None, ICU" )) +
+  geom_line(aes(y = covid19cases_full_vac_prev_7day, colour = "Fully, no hospital")) + 
+  geom_line(aes(y = covid19_cases_partial_vac_prev_7day, colour = "Partly, no hospital")) +
+  geom_line(aes(y = covid19_cases_unvac_prev_7day, colour = "None, no hospital")) + 
+  geom_line(aes(y = hospital_full_vac_prev_7day, colour = "Fully, hospital")) + 
+  geom_line(aes(y = hospital_partial_vac_prev_7day, colour = "Partly, hospital")) + 
+  geom_line(aes(y = hospital_unvac_prev_7day, colour = "None, hospital")) +
+  geom_line(aes(y = icu_full_vac_prev_7day, colour = "Fully, ICU")) + 
+  geom_line(aes(y = icu_partial_vac_prev_7day, colour = "Partly, ICU", )) + 
+  geom_line(aes(y = icu_unvac_prev_7day, colour = "None, ICU")) + 
+   scale_colour_manual("", 
+                      breaks = c("Fully, no hospital", "Partly, no hospital", "None, no hospital", "Fully, hospital", "Partly, hospital", "None, hospital", "Fully, ICU", "Partly, ICU", "None, ICU"),
+                      values = c("#313695", "#4575b4", "#74add1", "#ffffbf", "#fee090", "#fdae61", "#f46d43", "#d73027", "#a50026")) +
   labs(
     title = "Prevelence of COVID19 cases",
     subtitle = "Province of Ontario, 7 day rolling average",
