@@ -674,6 +674,68 @@ ggplot(data = drop_na(breakthrough_prev_viz), aes(x = report_date, group = 1)) +
   theme(axis.text.x = element_text(angle=45, hjust = 1), legend.position = "right", panel.grid.major = element_blank())
 ```
 
+### Vaccine effectiveness
+
+Vaccine effectiveness is the percentage reduction of disease cases in a vaccinated group of people compared to an unvaccinated group.
+
+$$VE = \frac{ARU - ARV}{ARU} * 100$$
+
+Where  
+VE = Vaccine effectiveness,  
+ARU = Attack rate of unvaccinated people (new cases in unvaccinated / total unvaccinated),  
+ARV = Attack rate of vaccinated people (new cases in vaccinated / total vaccinated)
+
+```{r vaccine effectiveness, echo = FALSE}
+# subset data from breakthrough cases
+effective <-
+breakthrough %>% select(report_date,
+full_vac,
+covid19_cases_unvac:covid19_cases_vac_unknown) %>%
+  
+# create derived variables attack rates total populations
+mutate(unvac = ONpop_est - full_vac) %>%
+mutate(covid19_cases_no_vac = covid19_cases_unvac + covid19_cases_partial_vac + covid19_cases_vac_unknown) %>%
+
+# Omit rows with NA values
+select(report_date,
+full_vac,
+unvac,
+covid19_cases_full_vac,
+covid19_cases_no_vac) %>% drop_na()
+
+# Convert report date to object class date
+effective$report_date <- as.Date(effective$report_date)
+
+# Calculate VE value
+effective <-
+effective %>% mutate(ARV = covid19_cases_full_vac / full_vac) %>%
+mutate (ARU = covid19_cases_no_vac / unvac) %>%
+mutate(VE = (ARU - ARV) / ARU * 100)
+```
+
+```{r visualisation of vaccine effectiveness, echo = FALSE}
+# subset date
+effective_viz <- effective %>% select(report_date, VE)
+
+# line graph
+ggplot(effective_viz, aes(report_date, VE, group = 1)) +
+geom_line() +
+geom_smooth(formula = y ~ x,
+colour = "#000000",
+method = "loess"
+) +
+scale_x_date(labels = date_format("%m/%d")) +
+scale_y_continuous(limits = c(0, 100)) +
+labs(
+linetype = "Vaccine effectiveness",
+x = "",
+y = "%",
+caption = "Data: Ontario COVID-19 vaccine data, Ontario COVID-19 cases and rates by vaccination staus;\nStatsCan Ontario population estimate 3rd Q 2021",
+title = "Ontario COVID-19 vaccine effectiveness, 2021"
+) +
+theme(axis.text.x = element_text(angle=45, hjust = 1), legend.position = "right", panel.grid.major = element_blank())
+```
+
 ## Citations
 
 ### Data
