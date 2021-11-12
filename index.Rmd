@@ -11,7 +11,7 @@ Tracking the progress of vaccinating Ontario's population against COVID-19.
 ```
 
 ### Code
-Horton, L. (2021). Ontario COVID-19 vaccination tracking (v7.0). *Zenodo*. https://doi.org/10.5281/zenodo.5201809
+Horton, L. (2021). Ontario COVID-19 vaccination tracking (v9.0). *Zenodo*. https://doi.org/10.5281/zenodo.4533399
 
 ### R packages  
 Allaire, J.J. et. al. (2021). *rmarkdown: Dynamic Documents for R. R package version 2.7*. https://rmarkdown.rstudio.com  
