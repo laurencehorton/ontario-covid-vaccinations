@@ -35,8 +35,8 @@ ONpop <-
   )
 age <- read.csv(ONpop)
 latestage <- tail(age, n = 11)
-ONpop12plus <-
-  latestage[10, 6]  # Capture total  12+ population total from the Ontario COVID-19 by age dataset.
+ONpop5plus <-
+  latestage[10, 7]  # Capture total  5+ population total from the Ontario COVID-19 by age dataset.
 PHU <-
   read.csv(
     "https://data.ontario.ca/dataset/752ce2b7-c15a-4965-a3dc-397bf405e7cc/resource/2a362139-b782-43b1-b3cb-078a2ef19524/download/vaccines_by_age_phu.csv"
@@ -77,94 +77,34 @@ vaxx$total_doses_administered <-
   as.numeric(as.character(vaxx$total_doses_administered))
 vaxx$total_individuals_at_least_one <-
   as.numeric(as.character(vaxx$total_individuals_at_least_one))
-vaxx$total_doses_in_fully_vaccinated_individuals <-
-  as.numeric(as.character(vaxx$total_doses_in_fully_vaccinated_individuals))
+vaxx$total_individuals_partially_vaccinated <-
+  as.numeric(as.character(vaxx$total_individuals_partially_vaccinated))
 vaxx$total_individuals_fully_vaccinated <-
   as.numeric(as.character(vaxx$total_individuals_fully_vaccinated))
-```
-
-```{r missing christmas data, include = FALSE}
-# The province administered the first vaccine on 2020-12-14 but didn't record data until 2020-12-24.
-firstdoses <- head(vaxx$total_doses_administered, n = 1)
-firstdose2020data <- data.frame(
-  "id" = 0,
-  "report_date" = c(
-    "2020-12-15T00:00:00",
-    "2020-12-16T00:00:00",
-    "2020-12-17T00:00:00",
-    "2020-12-18T00:00:00",
-    "2020-12-19T00:00:00",
-    "2020-12-20T00:00:00",
-    "2020-12-21T00:00:00",
-    "2020-12-22T00:00:00",
-    "2020=12-23T00:00:00"
-  ),
-  "previous_day_total_doses_administered" = 0,
-  "previous_day_at_least_one" = 0,
-  "previous_day_fully_vaccinated" = 0,
-  "total_doses_administered" = 0,
-  "total_individuals_at_least_one" = 0,
-  "total_doses_in_fully_vaccinated_individuals" = 0,
-  "total_individuals_fully_vaccinated" = 0
-)
-
-# The province did not administer any vaccines between 2020-12-25 and 2020-12-29 but omits this data from the data set. Add missing Christmas 2020 values.
-christmas2020data <- data.frame(
-  "id" = 0,
-  "report_date" = c(
-    "2020-12-25T00:00:00",
-    "2020-12-26T00:00:00",
-    "2020-12-27T00:00:00",
-    "2020-12-28T00:00:00",
-    "2020-12-29T00:00:00"
-  ),
-  "previous_day_total_doses_administered" = c(firstdoses, 0, 0, 0, 0),
-  "previous_day_at_least_one" = firstdoses,
-  "previous_day_fully_vaccinated" = 0,
-  "total_doses_administered" = firstdoses,
-  "total_individuals_at_least_one" = firstdoses,
-  "total_doses_in_fully_vaccinated_individuals" = 0,
-  "total_individuals_fully_vaccinated" = 0
-)
-
-# converts report date into date.
-firstdose2020data$report_date <- ymd_hms(firstdose2020data$report)
-christmas2020data$report_date <-
-  ymd_hms(christmas2020data$report_date)
-```
-
-```{r merge first doses and christmas 2020 data into data set, include = FALSE}
-vaxx <-
-  rbind(vaxx, firstdose2020data, christmas2020data) # merge with vaxx data
-vaxx <- vaxx[order(vaxx$report_date),] # sort by report date
 ```
 
 ```{r create vaccination percentages, include = FALSE}
 # Calculate new columns for vaccination of percentages of adults either partly vaccinated or fully vaccinated using adult population estimate.
 
 # Total number of partially vaccinated adults
-vaxx$part <-
-  ((
-    vaxx$total_doses_administered - vaxx$total_doses_in_fully_vaccinated_individuals
-  )
-  )
+vaxx$part <- (vaxx$total_individuals_at_least_one - vaxx$total_individuals_fully_vaccinated)
 
 # Total number of adults either fully or partially vaccinated
 vaxx$fullorpart <-
   ((vaxx$total_individuals_fully_vaccinated + vaxx$part))
 
 # Number of adults who are neither fully or partially vaccinated
-vaxx$none <- ((ONpop12plus - vaxx$fullorpart))
+vaxx$none <- ((ONpop5plus - vaxx$fullorpart))
 
 # Percentage shares
 vaxx$percentagepart <-
-  ((vaxx$part / ONpop12plus) * 100) # Part vaccinated
+  ((vaxx$part / ONpop5plus) * 100) # Part vaccinated
 vaxx$percentagefully <-
-  ((vaxx$total_individuals_fully_vaccinated / ONpop12plus) * 100) # Fully vaccinated
+  ((vaxx$total_individuals_fully_vaccinated / ONpop5plus) * 100) # Fully vaccinated
 vaxx$percentagefullorpart <-
-  ((vaxx$fullorpart / ONpop12plus) * 100) # Fully or partly vaccinated
+  ((vaxx$fullorpart / ONpop5plus) * 100) # Fully or partly vaccinated
 vaxx$percentagenone <-
-  ((vaxx$none / ONpop12plus) * 100) # No vaccination
+  ((vaxx$none / ONpop5plus) * 100) # No vaccination
 
 # Round percentages to two decimals
 vaxx$percentagefully <- round(vaxx$percentagefully, digits = 1)
@@ -235,7 +175,7 @@ ggplot(bar, aes(x = "", y = Percentage, fill = Status)) +
     x = NULL,
     y = NULL,
     caption = "Data: Ontario COVID-19 vaccine data, Ontario COVID-19 vaccine data by age",
-    title = "Ontario COVID-19 vaccination status of population (aged 12+)",
+    title = "Ontario COVID-19 vaccination status of population (aged 5+)",
     subtitle = Sys.Date()
   ) +
   theme_classic() +
@@ -250,25 +190,25 @@ ggplot(bar, aes(x = "", y = Percentage, fill = Status)) +
 
 ### Vaccination status by Public Health Region
 
-```{r filter public health unit data to age 12+, echo = FALSE}
-PHU12plus <-
-  PHU %>% filter(Agegroup == "Ontario_12plus") # filter out all the other age ranges so just total for 12+ remains
+```{r filter public health unit data to age 5+, echo = FALSE}
+PHU5plus <-
+  PHU %>% filter(Agegroup == "Ontario_5plus") # filter out all the other age ranges so just total for 5+ remains
 ```
 
 ```{r get most recent reporting date PHU data, echo = FALSE}
 recentPHU <-
-  tail(PHU12plus, n = 35) # Get the most recent day of data for the 34 units, plus "unknown"
+  tail(PHU5plus, n = 35) # Get the most recent day of data for the 34 units, plus "unknown"
 recentPHU <-
   recentPHU %>% select(
     Date,
     PHU.name,
     At.least.one.dose_cumulative,
-    Second_dose_cumulative,
+    fully_vaccinated_cumulative,
     Total.population
-  ) %>% mutate(At.least.one.dose_cumulative = At.least.one.dose_cumulative - Second_dose_cumulative) %>% mutate(None = Total.population - (At.least.one.dose_cumulative + Second_dose_cumulative)) %>% rename(
+  ) %>% mutate(At.least.one.dose_cumulative = At.least.one.dose_cumulative - fully_vaccinated_cumulative) %>% mutate(None = Total.population - (At.least.one.dose_cumulative + fully_vaccinated_cumulative)) %>% rename(
     Unit = PHU.name,
     Partly = At.least.one.dose_cumulative,
-    Fully = Second_dose_cumulative,
+    Fully = fully_vaccinated_cumulative,
     Population = Total.population
   )  %>% relocate(Date, Unit, None, Partly, Fully, Population)
 recentPHU_pct <-
@@ -319,7 +259,7 @@ ggplot(data = PHU_viz, aes(
     y = "%",
     x = "",
     caption = "Data: Ontario COVID-19 Vaccine data by Public Health Unit",
-    title = "Vaccination status of population (age 12+)",
+    title = "Vaccination status of population (age 5+)",
     subtitle = Sys.Date()
   ) +
   theme(
@@ -346,7 +286,7 @@ ggplot(vizfull, aes(report_date, percentage)) +
     y = "%",
     caption = "Data: Ontario COVID-19 vaccine data, Ontario COVID-19 vaccine data by age",
     title = "Ontario COVID-19 vaccination, 2020-2021",
-    subtitle = "Percentage of population (aged 12+)"
+    subtitle = "Percentage of population (aged 5+)"
   ) +
   theme(legend.position = "right", panel.grid.minor = element_blank())
 ```
@@ -429,7 +369,7 @@ agerecent <-
     latestage,
     Agegroup,
     At.least.one.dose_cumulative,
-    Second_dose_cumulative,
+    fully_vaccinated_cumulative,
     Total.population
   )
 
@@ -438,17 +378,18 @@ agerecent <-
     agerecent,
     Agegroup != "Adults_18plus" &
       Agegroup != "Undisclosed_or_missing" &
-      Agegroup != "Ontario_12plus"
+      Agegroup != "Ontario_12plus" &
+      Agegroup != "Ontario_5plus"
   ) # Remove the adult total, 12+ total, and NA groups.
 
 # Subtract Second dose total from at least one total
 agerecent <-
   mutate(agerecent,
-         At.least.one.dose = At.least.one.dose_cumulative - Second_dose_cumulative)
+         At.least.one.dose = At.least.one.dose_cumulative - fully_vaccinated_cumulative)
 
 # Convert to percentages. Multiply one dose percentage by -1 to give a negative number for visualisation.
 agerecent <-
-  agerecent %>% mutate(one.dose_pct = At.least.one.dose / Total.population * 100) %>% mutate(two.dose_pct = Second_dose_cumulative / Total.population * 100) %>% mutate(one.dose_pct = one.dose_pct * -1)
+  agerecent %>% mutate(one.dose_pct = At.least.one.dose / Total.population * 100) %>% mutate(two.dose_pct = fully_vaccinated_cumulative / Total.population * 100) %>% mutate(one.dose_pct = one.dose_pct * -1)
 
 # Add categorical variable for partly and fully vaccinated individuals.
 age1 <- agerecent %>% select(Agegroup, one.dose_pct)
@@ -468,7 +409,7 @@ ggplot(data = age, aes(x = Agegroup, y = Total, fill = Status)) +
     y = "% of age group",
     x = "",
     caption = "Data: Ontario COVID-19 vaccine data by age",
-    title = "Ontario COVID-19 vaccination status of population (aged 12+)",
+    title = "Ontario COVID-19 vaccination status of population (aged 18+)",
     subtitle = Sys.Date()
   ) +
   theme(
@@ -494,7 +435,7 @@ breakthrough <- rename(breakthrough, report_date = Date)
 #breakthrough$date <- gsub("/", "-", breakthrough$date) #If needed!
 ```
 
-```{r, get total population estimate for ON including under age 12s, echo = FALSE}
+```{r get total population estimate for ON including under age 12s, echo = FALSE}
 ONpop_est_Q3_2021 <- ("https://www150.statcan.gc.ca/t1/tbl1/en/dtl!downloadDbLoadingData-nonTraduit.action?pid=1710000901&latestN=0&startDate=20210401&endDate=20210701&csvLocale=en&selectedMembers=%5B%5B1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9%2C10%2C11%2C12%2C14%2C15%5D%5D") # read in StatsCan quarterly population estimate. Check the change every quarter
 ONpop_est <- ONpop_est_Q3_2021
 ONpop_est <- read.csv(ONpop_est) # read in CSV
@@ -528,8 +469,8 @@ unvac_adult_pop <- pop %>% select(unvac) %>% pull(unvac)
 partial_vac_pop <- pop %>% select(partial_vac) %>% pull(partial_vac)
 full_vac_pop <- pop %>% select(full_vac) %>% pull(full_vac)
 
-# Estimate total unvacinated population for province including ineligible (children under 12)
-unvac_pop <- ONpop_est - (ONpop12plus + unvac_adult_pop)
+# Estimate total unvacinated population for province including ineligible (children under 5)
+unvac_pop <- unvac_adult_pop + (ONpop_est - ONpop5plus)
 ```
 
 ```{r prevenlence non-hospital cases, echo = FALSE}
@@ -546,8 +487,8 @@ non_hospital_prev <-
 non_hospital_prev <- 
   non_hospital_prev %>% mutate(
     covid19_cases_unvac_prev_7day = rollmean(covid19_cases_unvac_prev, k = 7, fill = NA),
-    covid19_cases_partial_vac_prev_7day = rollmean(covid19_cases_partial_vac, k = 7, fill = NA),
-    covid19cases_full_vac_prev_7day = rollmean(covid19_cases_full_vac, k = 7, fill = NA)
+    covid19_cases_partial_vac_prev_7day = rollmean(covid19_cases_partial_vac_prev, k = 7, fill = NA),
+    covid19cases_full_vac_prev_7day = rollmean(covid19_cases_full_vac_prev, k = 7, fill = NA)
   )
 non_hospital_prev <- non_hospital_prev %>% select(report_date, covid19_cases_unvac_prev:covid19cases_full_vac_prev_7day)
 ```
