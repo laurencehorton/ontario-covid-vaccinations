@@ -435,9 +435,9 @@ breakthrough <- rename(breakthrough, report_date = Date)
 #breakthrough$date <- gsub("/", "-", breakthrough$date) #If needed!
 ```
 
-```{r get total population estimate for ON including under age 12s, echo = FALSE}
-ONpop_est_Q3_2021 <- ("https://www150.statcan.gc.ca/t1/tbl1/en/dtl!downloadDbLoadingData-nonTraduit.action?pid=1710000901&latestN=0&startDate=20210401&endDate=20210701&csvLocale=en&selectedMembers=%5B%5B1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9%2C10%2C11%2C12%2C14%2C15%5D%5D") # read in StatsCan quarterly population estimate. Check the change every quarter
-ONpop_est <- ONpop_est_Q3_2021
+```{r get total population estimate for ON, echo = FALSE}
+ONpop_est_Q4_2021 <- ("https://www150.statcan.gc.ca/t1/tbl1/en/dtl!downloadDbLoadingData-nonTraduit.action?pid=1710000901&latestN=0&startDate=20211001&endDate=20211001&csvLocale=en&selectedMembers=%5B%5B1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9%2C10%2C11%2C12%2C14%2C15%5D%5D") # read in StatsCan quarterly population estimate. Check the change every quarter
+ONpop_est <- ONpop_est_Q4_2021
 ONpop_est <- read.csv(ONpop_est) # read in CSV
 ONpop_est <- ONpop_est %>% filter(GEO == "Ontario") # filter for province
 ONpop_est <- tail(ONpop_est$VALUE, n = 1) # get character value for population estimate from VALUE column,
